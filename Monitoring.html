@@ -1,0 +1,3146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSentry - Classroom Monitoring</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-info span {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #ff3742;
+            transform: translateY(-2px);
+        }
+
+        .main-container {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        .monitoring-dashboard {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-title {
+            color: #333;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .monitoring-controls {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45b7b8;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff3742;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .students-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .student-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .student-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .student-card.selected {
+            border: 3px solid #4ecdc4;
+            transform: translateY(-5px);
+        }
+
+        .student-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .student-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .student-id {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .student-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-online {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-verifying {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #28a745;
+        }
+
+        .status-dot.offline {
+            background: #dc3545;
+        }
+
+        .status-dot.verifying {
+            background: #ffc107;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .student-video {
+            width: 100%;
+            height: 200px;
+            border-radius: 10px;
+            background: #000;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .student-video canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+            display: block !important;
+            background: #000 !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 10 !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        
+        .student-video .video-placeholder {
+            background: #1a1a1a;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        .student-video video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .student-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .action-btn.view {
+            background: #4ecdc4;
+            color: white;
+        }
+
+        .action-btn.view:hover {
+            background: #45b7b8;
+        }
+
+        .action-btn.alert {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .action-btn.alert:hover {
+            background: #e0a800;
+        }
+
+        .action-btn.warn {
+            background: #fd7e14;
+            color: white;
+        }
+
+        .action-btn.warn:hover {
+            background: #e55a00;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-video {
+            width: 100%;
+            height: 400px;
+            border-radius: 15px;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        .modal-video img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .modal-video video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .student-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .detail-item {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .detail-value {
+            color: #666;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        /* Modal Tabs */
+        .modal-tabs {
+            display: flex;
+            gap: 0.5rem;
+            border-bottom: 2px solid #e9ecef;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-tab {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .modal-tab:hover {
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        .modal-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .modal-tab-content {
+            display: none;
+        }
+
+        .modal-tab-content.active {
+            display: block;
+        }
+
+        /* AI Analysis Section */
+        .ai-analysis-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .ai-metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .ai-metric-label {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+
+        .ai-metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        /* Alert Logs */
+        .alert-logs-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .alert-log-item {
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+
+        .alert-log-item.critical {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .alert-log-item.high {
+            border-left-color: #fd7e14;
+            background: #fff8f0;
+        }
+
+        .alert-log-item.medium {
+            border-left-color: #ffc107;
+            background: #fffef5;
+        }
+
+        .alert-log-item.low {
+            border-left-color: #28a745;
+            background: #f0fff4;
+        }
+
+        .alert-log-time {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 0.5rem;
+        }
+
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 2rem;
+        }
+
+        .stats-grid-detail {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-card-label {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1.5rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #4ecdc4;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+            }
+
+            .main-container {
+                padding: 1rem;
+            }
+
+            .students-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .monitoring-controls {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .student-details {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📹 EduSentry Monitoring</h1>
+        <div class="user-info">
+            <span>Welcome, {{ user_name }} ({{ user_role }})</span>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="monitoring-dashboard">
+            <div class="dashboard-header">
+                <h2 class="dashboard-title">Classroom Monitoring Dashboard</h2>
+                <div class="monitoring-controls">
+                    <button class="btn btn-primary" id="startMonitoringBtn" onclick="startMonitoring()">
+                        Start Monitoring
+                    </button>
+                    <button class="btn btn-danger" id="stopMonitoringBtn" onclick="stopMonitoring()" disabled>
+                        Stop Monitoring
+                    </button>
+                    <button class="btn btn-secondary" id="refreshBtn" onclick="refreshStudents()">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalStudents">0</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="onlineStudents">0</div>
+                    <div class="stat-label">Online</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="verifiedStudents">0</div>
+                    <div class="stat-label">Verified</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="alertsCount">0</div>
+                    <div class="stat-label">Alerts</div>
+                </div>
+            </div>
+
+            <div class="alert alert-info" id="monitoringStatus">
+                <strong>📊 Status:</strong> Monitoring is not active. Click "Start Monitoring" to begin.
+            </div>
+
+            <div class="students-grid" id="studentsGrid">
+                <!-- Student cards will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Detail Modal -->
+    <div id="studentModal" class="modal">
+        <div class="modal-content" style="max-width: 1200px; width: 95%; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Student Details</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            
+            <div class="modal-video" id="modalVideo" style="height: 550px; position: relative; background: #000; border-radius: 8px; overflow: hidden; min-height: 550px;">
+                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #999; z-index: 1;">Click on a student to view their camera feed</div>
+                <!-- AI overlay is now drawn directly on video frame canvas, not separate overlay -->
+            </div>
+
+            <!-- Tabs -->
+            <div class="modal-tabs">
+                <button class="modal-tab active" onclick="switchModalTab('overview', this)">📊 Tổng quan</button>
+                <button class="modal-tab" onclick="switchModalTab('alerts', this)">🚨 Log cảnh báo</button>
+                <button class="modal-tab" onclick="switchModalTab('stats', this)">📈 Thống kê</button>
+                <button class="modal-tab" onclick="switchModalTab('charts', this)">📉 Biểu đồ</button>
+            </div>
+
+            <!-- Overview Tab -->
+            <div id="tabOverview" class="modal-tab-content active">
+                <div class="student-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Student Name</div>
+                        <div class="detail-value" id="modalStudentName">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Student ID</div>
+                        <div class="detail-value" id="modalStudentId">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Status</div>
+                        <div class="detail-value" id="modalStatus">-</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Join Time</div>
+                        <div class="detail-value" id="modalJoinTime">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Analysis Tab -->
+            <!-- AI Analysis tab removed -->
+
+            <!-- Alert Logs Tab -->
+            <div id="tabAlerts" class="modal-tab-content">
+                <div style="margin-bottom: 1rem;">
+                    <input type="text" id="alertLogSearch" placeholder="🔍 Tìm kiếm trong log..." 
+                           style="width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem;"
+                           onkeyup="filterAlertLogs()">
+                </div>
+                <div class="alert-logs-container" id="alertLogsContainer">
+                    <div style="text-align: center; color: #6c757d; padding: 2rem;">Chưa có cảnh báo nào</div>
+                </div>
+            </div>
+
+            <!-- Statistics Tab -->
+            <div id="tabStats" class="modal-tab-content">
+                <div class="stats-grid-detail" id="statsGridDetail">
+                    <!-- Stats will be populated here -->
+                </div>
+            </div>
+
+            <!-- Charts Tab -->
+            <div id="tabCharts" class="modal-tab-content">
+                <h4 style="margin-bottom: 1rem;">Biểu đồ theo thời gian</h4>
+                <div class="chart-container">
+                    <canvas id="attentionChart"></canvas>
+                </div>
+                <h4 style="margin-bottom: 1rem; margin-top: 2rem;">Phân bố loại cảnh báo</h4>
+                <div class="chart-container">
+                    <canvas id="alertTypeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let socket = null;
+        let isMonitoring = false;
+        let students = new Map();
+        let selectedStudent = null;
+        const videoCanvases = new Map();
+        const overlayCanvases = new Map();
+        let classroomId = '{{ classroom_id }}';
+        let userId = '{{ user_id }}';
+        let userRole = '{{ user_role }}';
+
+        function prepareVideoCanvas(userId, videoContainer) {
+            let canvas = videoCanvases.get(userId);
+            if (canvas && videoContainer && !videoContainer.contains(canvas)) {
+                videoCanvases.delete(userId);
+                canvas = null;
+            }
+
+            if (!canvas && videoContainer) {
+                canvas = videoContainer.querySelector('canvas.student-canvas');
+                if (!canvas) {
+                    canvas = document.createElement('canvas');
+                    canvas.className = 'student-canvas';
+                    canvas.setAttribute('data-user-id', userId);
+                    canvas.width = 320;
+                    canvas.height = 240;
+                    canvas.style.position = 'absolute';
+                    canvas.style.top = '0';
+                    canvas.style.left = '0';
+                    canvas.style.width = '100%';
+                    canvas.style.height = '100%';
+                    canvas.style.objectFit = 'cover';
+                    canvas.style.zIndex = '1';
+                    canvas.style.display = 'block';
+                    canvas.style.visibility = 'visible';
+                    canvas.style.opacity = '1';
+                    canvas.style.background = '#000';
+                    videoContainer.insertBefore(canvas, videoContainer.firstChild || null);
+                    console.log('✅ Created new canvas for user:', userId);
+                }
+                videoCanvases.set(userId, canvas);
+            }
+
+            if (!overlayCanvases.has(userId) && videoContainer) {
+                let overlay = videoContainer.querySelector('canvas.student-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('canvas');
+                    overlay.className = 'student-overlay';
+                    overlay.width = canvas ? canvas.width : 320;
+                    overlay.height = canvas ? canvas.height : 240;
+                    overlay.style.position = 'absolute';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.width = '100%';
+                    overlay.style.height = '100%';
+                    overlay.style.pointerEvents = 'none';
+                    overlay.style.zIndex = '2';
+                    videoContainer.appendChild(overlay);
+                } else if (canvas) {
+                    overlay.width = canvas.width;
+                    overlay.height = canvas.height;
+                }
+                overlayCanvases.set(userId, overlay);
+            }
+
+            return canvas;
+        }
+
+        function hideVideoPlaceholder(videoContainer) {
+            if (!videoContainer) return;
+            const placeholder = videoContainer.querySelector('.video-placeholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+        }
+
+        function dataUrlToBlob(dataUrl) {
+            if (!dataUrl || dataUrl.indexOf(',') === -1) return null;
+            const [header, base64] = dataUrl.split(',');
+            try {
+                const mimeMatch = header.match(/data:(.*?);base64/);
+                const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                const binary = atob(base64);
+                const len = binary.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                return new Blob([bytes], { type: mime });
+            } catch (error) {
+                console.error('❌ Failed to convert data URL to blob', error);
+                return null;
+            }
+        }
+
+        async function renderFrameToCanvas(userId, canvas, frameData) {
+            if (!canvas || !frameData) {
+                console.warn('⚠️ renderFrameToCanvas: Missing canvas or frameData', {canvas: !!canvas, frame: !!frameData});
+                return;
+            }
+
+            if (canvas._rendering) {
+                canvas._pendingFrame = frameData;
+                return;
+            }
+
+            canvas._rendering = true;
+            try {
+                const blob = dataUrlToBlob(frameData);
+                if (!blob) {
+                    console.warn('⚠️ Failed to create blob from frameData for user:', userId);
+                    return;
+                }
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.warn('⚠️ Failed to get canvas context for user:', userId);
+                    return;
+                }
+                
+                if (!canvas._smoothingConfigured) {
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    canvas._smoothingConfigured = true;
+                }
+
+                // Clear canvas first
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if ('createImageBitmap' in window) {
+                    try {
+                        const bitmap = await createImageBitmap(blob);
+                        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+                        if (bitmap.close) {
+                            bitmap.close();
+                        }
+                    } catch (bitmapError) {
+                        console.warn('⚠️ createImageBitmap failed, falling back to Image:', bitmapError);
+                        // Fallback to Image
+                        await new Promise((resolve, reject) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                try {
+                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                    resolve();
+                                } catch (drawError) {
+                                    reject(drawError);
+                                }
+                            };
+                            img.onerror = (err) => {
+                                console.error('⚠️ Image load error:', err);
+                                reject(err);
+                            };
+                            img.src = frameData;
+                        });
+                    }
+                } else {
+                    await new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.crossOrigin = 'anonymous';
+                        img.onload = () => {
+                            try {
+                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                resolve();
+                            } catch (drawError) {
+                                console.error('⚠️ drawImage error:', drawError);
+                                reject(drawError);
+                            }
+                        };
+                        img.onerror = (err) => {
+                            console.error('⚠️ Image load error:', err);
+                            reject(err);
+                        };
+                        img.src = frameData;
+                    });
+                }
+
+                canvas._lastRender = performance.now();
+            } catch (error) {
+                console.error(`❌ Error rendering frame for ${userId}:`, error);
+            } finally {
+                canvas._rendering = false;
+                if (canvas._pendingFrame) {
+                    const nextFrame = canvas._pendingFrame;
+                    canvas._pendingFrame = null;
+                    renderFrameToCanvas(userId, canvas, nextFrame);
+                }
+            }
+        }
+
+        function getOverlayCanvas(userId) {
+            if (overlayCanvases.has(userId)) {
+                return overlayCanvases.get(userId);
+            }
+            const container = document.querySelector(`.student-video[data-user-id="${userId}"]`);
+            if (!container) return null;
+            const overlay = container.querySelector('canvas.student-overlay');
+            if (overlay) {
+                overlayCanvases.set(userId, overlay);
+            }
+            return overlay || null;
+        }
+
+        function clearOverlay(userId) {
+            const overlay = getOverlayCanvas(userId);
+            if (!overlay) return;
+            const ctx = overlay.getContext('2d');
+            if (!ctx) return;
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+        }
+
+        function drawFaceOverlay(userId, faceData, attention) {
+            const overlay = getOverlayCanvas(userId);
+            if (!overlay) return;
+            const ctx = overlay.getContext('2d');
+            if (!ctx) return;
+
+            ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+            if (!faceData || !faceData.faces || faceData.faces.length === 0) {
+                return;
+            }
+
+            const frameWidth = faceData.frame_width || 1;
+            const frameHeight = faceData.frame_height || 1;
+            const scaleX = overlay.width / frameWidth;
+            const scaleY = overlay.height / frameHeight;
+
+            ctx.lineWidth = 2;
+            ctx.font = '12px Segoe UI, sans-serif';
+            ctx.textBaseline = 'bottom';
+
+            faceData.faces.forEach((face, idx) => {
+                const x = (face.left || 0) * scaleX;
+                const y = (face.top || 0) * scaleY;
+                const width = (face.width || 0) * scaleX;
+                const height = (face.height || 0) * scaleY;
+                const match = face.match;
+                const confidence = typeof face.confidence === 'number' ? Math.round(face.confidence * 100) : null;
+                const direction = face.direction || 'center';
+
+                ctx.strokeStyle = match === false ? '#ff3b30' : '#1dd1a1';
+                ctx.beginPath();
+                ctx.roundRect ? ctx.roundRect(x, y, width, height, 6) : ctx.rect(x, y, width, height);
+                ctx.stroke();
+
+                let label = `Face ${idx + 1}`;
+                if (confidence !== null) {
+                    label += match ? ` • ${confidence}%` : ` • Mismatch (${confidence}%)`;
+                }
+                label += ` • ${direction}`;
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(x, y - 18, ctx.measureText(label).width + 8, 18);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(label, x + 4, y - 4);
+            });
+
+            if (attention && typeof attention.score === 'number') {
+                const attentionText = `Attention: ${(attention.score * 100).toFixed(0)}%`;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+                const textWidth = ctx.measureText(attentionText).width + 10;
+                ctx.fillRect(5, overlay.height - 24, textWidth, 20);
+                ctx.fillStyle = '#ffd32a';
+                ctx.fillText(attentionText, 10, overlay.height - 8);
+            }
+        }
+
+        function updateModalVideo(userId, frameData) {
+            // Check if modal is open
+            const modal = document.getElementById('studentModal');
+            if (!modal || modal.style.display === 'none') {
+                return;
+            }
+            
+            // Check if this is the selected student
+            if (!selectedStudent || selectedStudent.userId !== userId) {
+                return;
+            }
+            
+            const modalVideo = document.getElementById('modalVideo');
+            if (!modalVideo) return;
+            
+            // Validate frame data
+            if (!frameData || frameData.length < 100) {
+                return;
+            }
+            
+            // Ensure frame data is in correct format
+            let processedFrameData = frameData;
+            if (!processedFrameData.startsWith('data:')) {
+                processedFrameData = 'data:image/jpeg;base64,' + processedFrameData;
+            }
+            
+            if (!processedFrameData.startsWith('data:image/')) {
+                return;
+            }
+
+            // Use separate canvas for video and overlay (giống Classroom.html)
+            // Video canvas for rendering frames
+            let modalVideoCanvas = modalVideo.querySelector('canvas.modal-video-canvas');
+            if (!modalVideoCanvas) {
+                modalVideoCanvas = document.createElement('canvas');
+                modalVideoCanvas.className = 'modal-video-canvas';
+                modalVideoCanvas.style.position = 'absolute';
+                modalVideoCanvas.style.top = '0';
+                modalVideoCanvas.style.left = '0';
+                modalVideoCanvas.style.width = '100%';
+                modalVideoCanvas.style.height = '100%';
+                modalVideoCanvas.style.objectFit = 'cover';
+                modalVideoCanvas.style.zIndex = '1';
+                modalVideo.innerHTML = '';
+                modalVideo.appendChild(modalVideoCanvas);
+            }
+            
+            // Overlay canvas for AI (separate layer on top - giống Classroom.html)
+            let modalOverlayCanvas = modalVideo.querySelector('canvas.modal-overlay-canvas');
+            if (!modalOverlayCanvas) {
+                modalOverlayCanvas = document.createElement('canvas');
+                modalOverlayCanvas.className = 'modal-overlay-canvas';
+                modalOverlayCanvas.style.position = 'absolute';
+                modalOverlayCanvas.style.top = '0';
+                modalOverlayCanvas.style.left = '0';
+                modalOverlayCanvas.style.width = '100%';
+                modalOverlayCanvas.style.height = '100%';
+                modalOverlayCanvas.style.pointerEvents = 'none';
+                modalOverlayCanvas.style.zIndex = '10';
+                modalVideo.appendChild(modalOverlayCanvas);
+            }
+            
+            // Load image and draw on video canvas
+            const img = new Image();
+            
+            img.onload = () => {
+                // Set video canvas size to match image dimensions
+                const imgWidth = img.naturalWidth || img.width || 640;
+                const imgHeight = img.naturalHeight || img.height || 480;
+                
+                modalVideoCanvas.width = imgWidth;
+                modalVideoCanvas.height = imgHeight;
+                
+                // Set overlay canvas to same size (bám sát với video)
+                modalOverlayCanvas.width = imgWidth;
+                modalOverlayCanvas.height = imgHeight;
+                
+                const videoCtx = modalVideoCanvas.getContext('2d');
+                
+                // Draw video frame on video canvas
+                videoCtx.drawImage(img, 0, 0, modalVideoCanvas.width, modalVideoCanvas.height);
+                
+                // Always update overlay on separate canvas (bám sát với frame)
+                updateModalAIOverlay();
+            };
+            img.onerror = () => {
+                console.error('❌ Error loading modal video frame');
+            };
+            img.src = processedFrameData;
+        }
+        
+        // Update modal AI overlay on separate canvas (bám sát với video frame - giống Classroom.html)
+        // Store tracking history per student for smooth tracking
+        const modalFaceTrackingHistory = new Map();
+        const MAX_TRACKING_HISTORY = 30;
+        let modalOverlayUpdateInterval = null;
+        
+        function updateModalAIOverlay() {
+            if (!selectedStudent || !selectedStudent.userId) {
+                return;
+            }
+            
+            const modalVideo = document.getElementById('modalVideo');
+            const modalOverlayCanvas = modalVideo?.querySelector('canvas.modal-overlay-canvas');
+            const modalVideoCanvas = modalVideo?.querySelector('canvas.modal-video-canvas');
+            
+            if (!modalOverlayCanvas || !modalVideoCanvas || modalVideo.style.display === 'none') {
+                return;
+            }
+            
+            // Ensure overlay canvas size matches video canvas
+            if (modalOverlayCanvas.width !== modalVideoCanvas.width || 
+                modalOverlayCanvas.height !== modalVideoCanvas.height) {
+                modalOverlayCanvas.width = modalVideoCanvas.width;
+                modalOverlayCanvas.height = modalVideoCanvas.height;
+            }
+            
+            const ctx = modalOverlayCanvas.getContext('2d');
+            ctx.clearRect(0, 0, modalOverlayCanvas.width, modalOverlayCanvas.height);
+            
+            const currentStudent = students.get(selectedStudent.userId);
+            if (!currentStudent || !currentStudent.lastFaceData) {
+                return;
+            }
+            
+            const faceData = currentStudent.lastFaceData;
+            const attentionScore = currentStudent.attentionScore !== undefined 
+                ? currentStudent.attentionScore 
+                : (currentStudent.lastAttention && currentStudent.lastAttention.score);
+            
+            // Draw AI overlay with full tracking (giống Classroom.html)
+            drawModalAIOverlayOnCanvas(ctx, modalOverlayCanvas, faceData, attentionScore);
+        }
+        
+        // Start continuous overlay update loop (giống Classroom.html)
+        function startModalOverlayUpdateLoop() {
+            if (modalOverlayUpdateInterval) {
+                clearInterval(modalOverlayUpdateInterval);
+            }
+            
+            modalOverlayUpdateInterval = setInterval(() => {
+                const modal = document.getElementById('studentModal');
+                if (!modal || modal.style.display === 'none') {
+                    if (modalOverlayUpdateInterval) {
+                        clearInterval(modalOverlayUpdateInterval);
+                        modalOverlayUpdateInterval = null;
+                    }
+                    return;
+                }
+                updateModalAIOverlay();
+            }, 100); // Update every 100ms (10 FPS) for smooth tracking and reduce lag
+        }
+        
+        // Draw AI overlay on modal overlay canvas (bám sát với video frame - giống Classroom.html)
+        function drawModalAIOverlayOnCanvas(ctx, canvas, faceData, attentionScore) {
+            if (!faceData || !faceData.faces || faceData.faces.length === 0) {
+                return;
+            }
+            
+            const frameWidth = faceData.frame_width || canvas.width;
+            const frameHeight = faceData.frame_height || canvas.height;
+            const scaleX = canvas.width / frameWidth;
+            const scaleY = canvas.height / frameHeight;
+            
+            const faces = faceData.faces;
+            const faceLocked = faceData.face_locked || false;
+            const stabilityScore = faceData.stability_score || 0;
+            
+            // Draw all detected faces with full tracking (giống Classroom.html)
+            faces.forEach((face, index) => {
+                // Get face coordinates - handle both formats
+                let faceLeft = face.left || face.x || 0;
+                let faceTop = face.top || face.y || 0;
+                let faceWidth = face.width || (face.right ? face.right - faceLeft : 0);
+                let faceHeight = face.height || (face.bottom ? face.bottom - faceTop : 0);
+                
+                // Scale to canvas coordinates
+                let x = faceLeft * scaleX;
+                let y = faceTop * scaleY;
+                let width = faceWidth * scaleX;
+                let height = faceHeight * scaleY;
+                
+                if (width <= 0 || height <= 0) return;
+                
+                const centerX = x + width / 2;
+                const centerY = y + height / 2;
+                
+                // Get or create tracking history for this student
+                if (!modalFaceTrackingHistory.has(selectedStudent?.userId)) {
+                    modalFaceTrackingHistory.set(selectedStudent?.userId, []);
+                }
+                let trackingHistory = modalFaceTrackingHistory.get(selectedStudent?.userId);
+                
+                // Draw tracking line (trajectory) - bám sát gương mặt
+                if (index === 0) {
+                    // Use backend tracking history if available (more accurate)
+                    const backendTrackingHistory = faceData.tracking_history || [];
+                    
+                    if (backendTrackingHistory.length > 0) {
+                        // Convert backend coordinates to canvas coordinates
+                        const backendHistory = backendTrackingHistory.map(pos => ({
+                            x: (pos.x || centerX) * scaleX,
+                            y: (pos.y || centerY) * scaleY,
+                            timestamp: pos.timestamp || Date.now()
+                        }));
+                        
+                        // Draw tracking line (trajectory) - bám sát gương mặt
+                        if (backendHistory.length > 1) {
+                            ctx.strokeStyle = faceLocked ? '#4caf50' : '#ffc107';
+                            ctx.lineWidth = 3;
+                            ctx.setLineDash([6, 4]); // Dashed line
+                            ctx.beginPath();
+                            ctx.moveTo(backendHistory[0].x, backendHistory[0].y);
+                            for (let i = 1; i < backendHistory.length; i++) {
+                                ctx.lineTo(backendHistory[i].x, backendHistory[i].y);
+                            }
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            
+                            // Draw tracking dots along the path
+                            backendHistory.forEach((point, i) => {
+                                const alpha = Math.min(0.8, 0.3 + (i / backendHistory.length) * 0.5);
+                                ctx.fillStyle = faceLocked 
+                                    ? `rgba(76, 175, 80, ${alpha})` 
+                                    : `rgba(255, 193, 7, ${alpha})`;
+                                ctx.beginPath();
+                                ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+                                ctx.fill();
+                            });
+                            
+                            trackingHistory = backendHistory.slice(-MAX_TRACKING_HISTORY);
+                            modalFaceTrackingHistory.set(selectedStudent?.userId, trackingHistory);
+                        }
+                    } else {
+                        // Fallback to frontend tracking history
+                        trackingHistory.push({ x: centerX, y: centerY, timestamp: Date.now() });
+                        if (trackingHistory.length > MAX_TRACKING_HISTORY) {
+                            trackingHistory.shift();
+                        }
+                        
+                        // Draw tracking line (trajectory)
+                        if (trackingHistory.length > 1) {
+                            ctx.strokeStyle = faceLocked ? '#4caf50' : '#ffc107';
+                            ctx.lineWidth = 3;
+                            ctx.setLineDash([6, 4]);
+                            ctx.beginPath();
+                            ctx.moveTo(trackingHistory[0].x, trackingHistory[0].y);
+                            for (let i = 1; i < trackingHistory.length; i++) {
+                                ctx.lineTo(trackingHistory[i].x, trackingHistory[i].y);
+                            }
+                            ctx.stroke();
+                            ctx.setLineDash([]);
+                            
+                            // Draw tracking dots
+                            trackingHistory.forEach((point, i) => {
+                                const alpha = Math.min(0.8, 0.3 + (i / trackingHistory.length) * 0.5);
+                                ctx.fillStyle = faceLocked 
+                                    ? `rgba(76, 175, 80, ${alpha})` 
+                                    : `rgba(255, 193, 7, ${alpha})`;
+                                ctx.beginPath();
+                                ctx.arc(point.x, point.y, 3, 0, 2 * Math.PI);
+                                ctx.fill();
+                            });
+                        }
+                    }
+                }
+                
+                // Determine box color based on lock status (giống Classroom.html)
+                let boxColor;
+                if (faceLocked && index === 0) {
+                    if (stabilityScore >= 0.7) {
+                        boxColor = '#4caf50'; // Bright green - very stable
+                    } else if (stabilityScore >= 0.4) {
+                        boxColor = '#ffc107'; // Yellow - moderate stability
+                    } else {
+                        boxColor = '#ff5722'; // Orange-red - unstable
+                    }
+                } else {
+                    boxColor = '#ffc107'; // Yellow - detecting
+                }
+                
+                // Draw face bounding box - phone camera / traffic camera style (thick, prominent, like target tracking)
+                // Giống Classroom.html - khung bám sát gương mặt rõ ràng
+                // Outer border with shadow (like traffic camera bounding boxes) - VERY VISIBLE
+                ctx.strokeStyle = boxColor;
+                ctx.lineWidth = 5; // Thicker line for better visibility
+                ctx.setLineDash([]); // Solid line
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+                ctx.strokeRect(x, y, width, height);
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+                
+                // Draw second outline for better visibility
+                ctx.strokeStyle = boxColor;
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.8;
+                ctx.strokeRect(x + 1, y + 1, width - 2, height - 2);
+                ctx.globalAlpha = 1.0;
+                
+                // Inner highlight border for depth (like traffic cameras)
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x + 3, y + 3, width - 6, height - 6);
+                
+                // Add glow effect for locked faces (like traffic cameras when target is locked)
+                if (faceLocked && index === 0 && stabilityScore >= 0.7) {
+                    ctx.strokeStyle = boxColor;
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = 0.4;
+                    ctx.strokeRect(x - 3, y - 3, width + 6, height + 6);
+                    ctx.globalAlpha = 1.0;
+                }
+                
+                // Draw corner indicators - phone camera style (large, prominent corners)
+                const cornerSize = Math.min(30, width * 0.15, height * 0.15); // Proportional to face size
+                const cornerThickness = 5; // Thick corners like phone cameras
+                ctx.fillStyle = boxColor;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 6;
+                
+                // Top-left corner (L-shaped)
+                ctx.fillRect(x, y, cornerSize, cornerThickness);
+                ctx.fillRect(x, y, cornerThickness, cornerSize);
+                
+                // Top-right corner (L-shaped, mirrored)
+                ctx.fillRect(x + width - cornerSize, y, cornerSize, cornerThickness);
+                ctx.fillRect(x + width - cornerThickness, y, cornerThickness, cornerSize);
+                
+                // Bottom-left corner (L-shaped, flipped)
+                ctx.fillRect(x, y + height - cornerThickness, cornerSize, cornerThickness);
+                ctx.fillRect(x, y + height - cornerSize, cornerThickness, cornerSize);
+                
+                // Bottom-right corner (L-shaped, flipped and mirrored)
+                ctx.fillRect(x + width - cornerSize, y + height - cornerThickness, cornerSize, cornerThickness);
+                ctx.fillRect(x + width - cornerThickness, y + height - cornerSize, cornerThickness, cornerSize);
+                
+                ctx.shadowBlur = 0;
+                
+                // Draw center point and target ID (like traffic cameras) - TARGET GƯƠNG MẶT
+                if (index === 0) {
+                    // Always draw center point using calculated center (like traffic cameras show target center)
+                    ctx.fillStyle = boxColor;
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                    ctx.shadowBlur = 4;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    
+                    // Draw white inner dot for visibility
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Draw target ID label at bottom (like traffic cameras show target ID)
+                    const currentStudent = students.get(selectedStudent?.userId);
+                    const studentId = currentStudent?.studentId || 'STUDENT';
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    ctx.fillRect(x, y + height + 2, width, 22);
+                    ctx.fillStyle = boxColor;
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                    ctx.shadowBlur = 2;
+                    const targetLabel = faceLocked ? `🔒 ${studentId}` : `Đang theo dõi: ${studentId}`;
+                    ctx.fillText(targetLabel, x + width / 2, y + height + 17);
+                    ctx.shadowBlur = 0;
+                    ctx.textAlign = 'left';
+                }
+                
+                // Draw label
+                const match = face.match;
+                const confidence = typeof face.confidence === 'number' ? Math.round(face.confidence * 100) : null;
+                let label = `Face ${index + 1}`;
+                if (confidence !== null) {
+                    label += match !== false ? ` • ${confidence}%` : ` • Mismatch (${confidence}%)`;
+                }
+                
+                ctx.font = 'bold 13px Segoe UI, sans-serif';
+                const labelWidth = ctx.measureText(label).width + 12;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(x, y - 22, labelWidth, 22);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(label, x + 6, y - 5);
+                
+                // Draw lock icon and stability for locked face - phone camera style (giống Classroom.html)
+                if (faceLocked && index === 0) {
+                    // Draw lock icon badge at top-left (like phone camera indicators)
+                    const badgeSize = 35;
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x + 5, y + 5, badgeSize, badgeSize);
+                    ctx.fillStyle = boxColor;
+                    ctx.font = 'bold 24px Arial';
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText('🔒', x + 12, y + 30);
+                    ctx.shadowBlur = 0;
+                    
+                    // Draw stability indicator bar at top (like phone camera info)
+                    const barHeight = 28;
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    ctx.fillRect(x, y - barHeight, width, barHeight);
+                    
+                    // Stability text
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 15px Arial';
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                    ctx.shadowBlur = 3;
+                    const stabilityText = `🔒 Đã khóa - Ổn định: ${Math.round(stabilityScore * 100)}%`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(stabilityText, x + width / 2, y - 8);
+                    ctx.textAlign = 'left';
+                    ctx.shadowBlur = 0;
+                } else if (index === 0) {
+                    // Show "Đang phát hiện..." for first face that's not locked yet
+                    ctx.fillStyle = 'rgba(255, 193, 7, 0.8)';
+                    ctx.fillRect(x, y - 25, width, 22);
+                    ctx.fillStyle = '#000';
+                    ctx.font = 'bold 13px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Đang phát hiện khuôn mặt...', x + width / 2, y - 8);
+                    ctx.textAlign = 'left';
+                }
+            });
+            
+            // Draw attention score
+            if (attentionScore !== undefined && typeof attentionScore === 'number') {
+                const attentionText = `Attention: ${(attentionScore * 100).toFixed(0)}%`;
+                ctx.font = 'bold 14px Segoe UI, sans-serif';
+                const textWidth = ctx.measureText(attentionText).width + 18;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fillRect(10, canvas.height - 32, textWidth, 28);
+                ctx.fillStyle = '#ffd32a';
+                ctx.fillText(attentionText, 19, canvas.height - 10);
+            }
+            
+            // Draw stability score
+            if (stabilityScore !== undefined) {
+                const stabilityText = `Stability: ${(stabilityScore * 100).toFixed(0)}%`;
+                ctx.font = 'bold 14px Segoe UI, sans-serif';
+                const textWidth = ctx.measureText(stabilityText).width + 18;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fillRect(canvas.width - textWidth - 10, canvas.height - 32, textWidth, 28);
+                ctx.fillStyle = faceLocked ? '#4caf50' : '#ffc107';
+                ctx.fillText(stabilityText, canvas.width - textWidth - 1, canvas.height - 10);
+            }
+            
+            // Draw face lock status indicator
+            if (faceLocked) {
+                const lockText = '🔒 Face Locked';
+                ctx.font = 'bold 15px Segoe UI, sans-serif';
+                const textWidth = ctx.measureText(lockText).width + 18;
+                ctx.fillStyle = 'rgba(76, 175, 80, 0.85)';
+                ctx.fillRect(10, 10, textWidth, 32);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(lockText, 19, 33);
+            }
+        }
+        
+        // OLD FUNCTION - DEPRECATED - AI overlay is now drawn directly on video frame
+        // Keep for backward compatibility but will be removed
+        function drawModalAIOverlay(faceData, attentionScore) {
+            // Overlay is now drawn directly in updateModalVideo when frame is rendered
+            // This function is kept for compatibility but does nothing
+            return;
+            const modalVideo = document.getElementById('modalVideo');
+            if (!modalVideo || modalVideo.style.display === 'none') {
+                return;
+            }
+            
+            let overlayCanvas = document.getElementById('modalVideoOverlay');
+            if (!overlayCanvas) {
+                overlayCanvas = document.createElement('canvas');
+                overlayCanvas.id = 'modalVideoOverlay';
+                overlayCanvas.style.position = 'absolute';
+                overlayCanvas.style.top = '0';
+                overlayCanvas.style.left = '0';
+                overlayCanvas.style.width = '100%';
+                overlayCanvas.style.height = '100%';
+                overlayCanvas.style.pointerEvents = 'none';
+                overlayCanvas.style.zIndex = '10';
+                overlayCanvas.style.display = 'block';
+                modalVideo.appendChild(overlayCanvas);
+            }
+            
+            const modalImg = modalVideo.querySelector('img');
+            if (!modalImg) {
+                // Image not ready yet, but still try to draw overlay
+                const rect = modalVideo.getBoundingClientRect();
+                overlayCanvas.width = rect.width || 640;
+                overlayCanvas.height = rect.height || 480;
+            } else {
+                // Resize canvas to match video image dimensions (not container size)
+                if (modalImg.complete && modalImg.naturalWidth > 0) {
+                    overlayCanvas.width = modalImg.naturalWidth || modalImg.width || 640;
+                    overlayCanvas.height = modalImg.naturalHeight || modalImg.height || 480;
+                } else {
+                    // Wait for image to load
+                    modalImg.onload = () => {
+                        overlayCanvas.width = modalImg.naturalWidth || modalImg.width || 640;
+                        overlayCanvas.height = modalImg.naturalHeight || modalImg.height || 480;
+                        drawModalAIOverlay(faceData, attentionScore);
+                    };
+                    return;
+                }
+            }
+            
+            const ctx = overlayCanvas.getContext('2d');
+            ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            
+            if (!faceData || !faceData.faces || faceData.faces.length === 0) {
+                overlayCanvas.style.display = 'none';
+                return;
+            }
+            
+            overlayCanvas.style.display = 'block';
+            
+            const frameWidth = faceData.frame_width || overlayCanvas.width;
+            const frameHeight = faceData.frame_height || overlayCanvas.height;
+            const scaleX = overlayCanvas.width / frameWidth;
+            const scaleY = overlayCanvas.height / frameHeight;
+            
+            const faces = faceData.faces;
+            const faceLocked = faceData.face_locked || false;
+            const stabilityScore = faceData.stability_score || 0;
+            
+            // Draw face bounding boxes
+            faces.forEach((face, index) => {
+                const x = (face.left || 0) * scaleX;
+                const y = (face.top || 0) * scaleY;
+                const width = (face.width || 0) * scaleX;
+                const height = (face.height || 0) * scaleY;
+                
+                if (width <= 0 || height <= 0) return;
+                
+                // Box color based on lock status
+                let boxColor = faceLocked ? '#4caf50' : '#ffc107';
+                if (faceLocked && stabilityScore >= 0.7) {
+                    boxColor = '#4caf50'; // Green - locked
+                } else if (faceLocked) {
+                    boxColor = '#ffc107'; // Yellow - detecting
+                }
+                
+                // Draw bounding box
+                ctx.strokeStyle = boxColor;
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x, y, width, height);
+                
+                // Draw label
+                const match = face.match;
+                const confidence = typeof face.confidence === 'number' ? Math.round(face.confidence * 100) : null;
+                let label = `Face ${index + 1}`;
+                if (confidence !== null) {
+                    label += match !== false ? ` • ${confidence}%` : ` • Mismatch (${confidence}%)`;
+                }
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(x, y - 20, ctx.measureText(label).width + 10, 20);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '12px Segoe UI, sans-serif';
+                ctx.fillText(label, x + 5, y - 5);
+            });
+            
+            // Draw attention score
+            if (attentionScore !== undefined && typeof attentionScore === 'number') {
+                const attentionText = `Attention: ${(attentionScore * 100).toFixed(0)}%`;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(10, overlayCanvas.height - 30, ctx.measureText(attentionText).width + 20, 25);
+                ctx.fillStyle = '#ffd32a';
+                ctx.font = '14px Segoe UI, sans-serif';
+                ctx.fillText(attentionText, 20, overlayCanvas.height - 10);
+            }
+            
+            // Draw stability score
+            if (stabilityScore !== undefined) {
+                const stabilityText = `Stability: ${(stabilityScore * 100).toFixed(0)}%`;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                const textWidth = ctx.measureText(stabilityText).width + 20;
+                ctx.fillRect(overlayCanvas.width - textWidth - 10, overlayCanvas.height - 30, textWidth, 25);
+                ctx.fillStyle = faceLocked ? '#4caf50' : '#ffc107';
+                ctx.fillText(stabilityText, overlayCanvas.width - textWidth, overlayCanvas.height - 10);
+            }
+        }
+
+        function showMonitoringWarning(message) {
+            const status = document.getElementById('monitoringStatus');
+            if (status) {
+                status.className = 'alert alert-warning';
+                status.innerHTML = `<strong>⚠️ Status:</strong> ${message}`;
+            }
+        }
+
+        // Initialize socket connection
+        function initSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                console.log('Connected to server');
+                // Auto-start monitoring if classroom_id is available
+                if (classroomId && !isMonitoring) {
+                    startMonitoring();
+                }
+            });
+
+            socket.on('user_joined', function(data) {
+                handleUserJoined(data);
+            });
+
+            socket.on('video_update', function(data) {
+                console.log('📹 Received video_update event:', {
+                    userId: data?.user_id,
+                    studentId: data?.student_id,
+                    frameSize: data?.frame?.length || 0,
+                    hasFrame: !!data?.frame
+                });
+                handleVideoUpdate(data);
+            });
+
+            socket.on('user_left', function(data) {
+                handleUserLeft(data);
+            });
+            
+            // Listen for AI monitoring alerts
+            socket.on('monitoring_alert', function(data) {
+                console.log('🚨 [Monitoring] Received monitoring_alert event:', data);
+                handleMonitoringAlert(data);
+            });
+
+            socket.on('monitoring_overlay', function(data) {
+                console.log('📊 [Monitoring] Received monitoring_overlay event:', {
+                    userId: data?.user_id,
+                    studentId: data?.student_id,
+                    facesCount: data?.face_data?.faces?.length || 0,
+                    alertsCount: data?.alerts?.length || 0,
+                    attention: data?.attention,
+                    faceLocked: data?.face_data?.face_locked,
+                    stabilityScore: data?.face_data?.stability_score
+                });
+                handleMonitoringOverlay(data);
+            });
+        }
+
+        // Start monitoring
+        async function startMonitoring() {
+            if (isMonitoring) {
+                console.log('⚠️ Monitoring already active');
+                return;
+            }
+
+            if (!classroomId) {
+                console.error('❌ No classroom ID available');
+                alert('No classroom ID found. Please access monitoring from a classroom page.');
+                return;
+            }
+
+            console.log('🚀 Starting monitoring for classroom:', classroomId);
+
+            // Join the classroom room
+            socket.emit('join', {
+                classroom_id: classroomId,
+                userId: userId,
+                userRole: userRole
+            });
+
+            // Listen for join success
+            socket.once('join_success', function(data) {
+                console.log('✅ Successfully joined classroom room:', data);
+            });
+
+            isMonitoring = true;
+            updateMonitoringStatus();
+            updateButtons();
+
+            // Load existing students who have already joined
+            await loadExistingStudents();
+
+            console.log('✅ Monitoring started for classroom:', classroomId);
+        }
+
+        // Load existing students in the classroom
+        async function loadExistingStudents() {
+            try {
+                // Load students from monitoring API
+                const response = await fetch(`/api/monitoring/students/${classroomId}`, {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    // Add students to the map
+                    data.students.forEach(student => {
+                        if (student.isMonitoring) {
+                            students.set(student.userId, {
+                                userId: student.userId,
+                                studentId: student.studentId,
+                                name: `${student.firstName} ${student.lastName}`,
+                                cameraEnabled: student.cameraEnabled,
+                                identityVerified: student.identityVerified,
+                                recentAlerts: student.recentAlerts || 0,
+                                status: student.cameraEnabled ? 'online' : 'offline',
+                                joinTime: student.joinedAt ? new Date(student.joinedAt) : new Date(),
+                                videoFrame: null,
+                                lastFrameToken: null
+                            });
+                        }
+                    });
+                    updateStudentsGrid();
+                    console.log(`Loaded ${data.students.length} students from monitoring API`);
+                } else if (response.status === 403) {
+                    const message = await response.json().catch(() => null);
+                    showMonitoringWarning(message && message.message ? message.message : 'Access denied. Please make sure this account has teacher/exam permissions.');
+                    console.warn('Access denied when loading monitoring students.');
+                } else {
+                    console.log('Monitoring API not available (status', response.status, '), relying on Socket.IO events');
+                }
+            } catch (error) {
+                console.error('Error loading existing students:', error);
+            }
+        }
+
+        // Stop monitoring
+        function stopMonitoring() {
+            if (!isMonitoring) return;
+
+            // Leave the classroom room
+            socket.emit('leave', {
+                classroom_id: classroomId
+            });
+
+            isMonitoring = false;
+            students.clear();
+            updateMonitoringStatus();
+            updateButtons();
+            updateStudentsGrid();
+
+            console.log('Monitoring stopped');
+        }
+
+        // Update monitoring status
+        function updateMonitoringStatus() {
+            const status = document.getElementById('monitoringStatus');
+            if (isMonitoring) {
+                status.className = 'alert alert-info';
+                status.innerHTML = '<strong>📊 Status:</strong> Monitoring is active. Watching for students...';
+            } else {
+                status.className = 'alert alert-warning';
+                status.innerHTML = '<strong>📊 Status:</strong> Monitoring is not active. Click "Start Monitoring" to begin.';
+            }
+        }
+
+        // Update buttons
+        function updateButtons() {
+            document.getElementById('startMonitoringBtn').disabled = isMonitoring;
+            document.getElementById('stopMonitoringBtn').disabled = !isMonitoring;
+        }
+
+        // Handle user joined
+        function handleUserJoined(data) {
+            // Only show students, not teachers/monitors
+            if (data.user_role && data.user_role !== 'Student') {
+                console.log('Teacher/Monitor joined:', data);
+                return;
+            }
+            
+            const student = {
+                userId: data.user_id,
+                studentId: data.student_id || 'N/A',
+                name: data.user_name || `Student ${data.student_id || 'Unknown'}`,
+                status: 'online',
+                joinTime: new Date(),
+                videoFrame: null,
+                isVerified: false,
+                lastFrameToken: null
+            };
+
+            students.set(data.user_id, student);
+            updateStudentsGrid();
+            updateStats();
+
+            console.log('Student joined:', data);
+        }
+
+        // Handle video update
+        function handleVideoUpdate(data) {
+            if (!data || !data.user_id || !data.frame) {
+                console.warn('⚠️ Invalid video update data:', data);
+                return;
+            }
+
+            let frameData = data.frame;
+            if (!frameData.startsWith('data:')) {
+                frameData = 'data:image/jpeg;base64,' + frameData;
+            }
+
+            // Accept any valid data URL, even small ones
+            if (!frameData.startsWith('data:image/')) {
+                console.warn('⚠️ Frame rejected - invalid format for user:', data.user_id, 'Data:', frameData.substring(0, 50));
+                return;
+            }
+
+            let student = students.get(data.user_id);
+            if (!student) {
+                console.log('⚠️ Video update from unknown student:', data.user_id, '- creating entry');
+                student = {
+                    userId: data.user_id,
+                    studentId: data.student_id || 'N/A',
+                    name: data.user_name || `Student ${data.student_id || data.user_id}`,
+                    status: 'online',
+                    joinTime: new Date(),
+                    videoFrame: null,
+                    isVerified: false,
+                    recentAlerts: 0,
+                    lastFrameToken: null
+                };
+                students.set(data.user_id, student);
+                updateStudentsGrid();
+                updateStats();
+                
+                // Wait a bit for DOM to update, then try to render
+                setTimeout(() => {
+                    const card = document.querySelector(`.student-card[data-user-id="${data.user_id}"]`);
+                    if (card && frameData) {
+                        console.log('✅ Found newly created student card, rendering video for:', data.user_id);
+                        renderVideoToCard(card, data.user_id, frameData);
+                    }
+                }, 150);
+            }
+
+            const frameToken = `${frameData.length}:${frameData.substring(0, 40)}`;
+            if (student.lastFrameToken === frameToken) {
+                // Skip duplicate frames
+                return;
+            }
+            student.lastFrameToken = frameToken;
+            student.videoFrame = frameData;
+
+            // Try to find and update the video display immediately
+            let studentCard = document.querySelector(`.student-card[data-user-id="${data.user_id}"]`);
+            if (studentCard) {
+                // Card exists, render immediately
+                renderVideoToCard(studentCard, data.user_id, frameData);
+            } else {
+                // Card doesn't exist yet, try multiple times with increasing delays
+                let retryCount = 0;
+                const maxRetries = 5;
+                const retryInterval = 100;
+                
+                const retryRender = () => {
+                    retryCount++;
+                    studentCard = document.querySelector(`.student-card[data-user-id="${data.user_id}"]`);
+                    if (studentCard) {
+                        console.log(`✅ Found student card after ${retryCount} retries, rendering video for:`, data.user_id);
+                        renderVideoToCard(studentCard, data.user_id, frameData);
+                    } else if (retryCount < maxRetries) {
+                        setTimeout(retryRender, retryInterval);
+                    } else {
+                        console.warn('⚠️ Student card not found after', maxRetries, 'retries for:', data.user_id);
+                        // Force update grid one more time
+                        updateStudentsGrid();
+                        setTimeout(() => {
+                            studentCard = document.querySelector(`.student-card[data-user-id="${data.user_id}"]`);
+                            if (studentCard) {
+                                renderVideoToCard(studentCard, data.user_id, frameData);
+                            }
+                        }, 200);
+                    }
+                };
+                
+                setTimeout(retryRender, 50);
+            }
+
+            updateModalVideo(data.user_id, frameData);
+        }
+
+        // Helper function to render video to card
+        function renderVideoToCard(studentCard, userId, frameData) {
+            if (!studentCard || !frameData) {
+                console.warn('⚠️ renderVideoToCard: Missing card or frameData', {card: !!studentCard, frame: !!frameData});
+                return;
+            }
+            
+            const videoContainer = studentCard.querySelector('.student-video');
+            if (!videoContainer) {
+                console.warn('⚠️ Video container not found for user:', userId);
+                return;
+            }
+
+            const canvas = prepareVideoCanvas(userId, videoContainer);
+            if (canvas) {
+                hideVideoPlaceholder(videoContainer);
+                // Ensure canvas is visible and properly styled
+                canvas.style.display = 'block';
+                canvas.style.visibility = 'visible';
+                canvas.style.opacity = '1';
+                canvas.style.zIndex = '1';
+                canvas.style.position = 'absolute';
+                canvas.style.top = '0';
+                canvas.style.left = '0';
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                
+                // Render the frame (async function)
+                renderFrameToCanvas(userId, canvas, frameData);
+            } else {
+                console.warn('⚠️ Canvas not found/created for user:', userId);
+            }
+        }
+
+        // Handle user left
+        function handleUserLeft(data) {
+            students.delete(data.user_id);
+            videoCanvases.delete(data.user_id);
+            overlayCanvases.delete(data.user_id);
+            updateStudentsGrid();
+            updateStats();
+
+            console.log('Student left:', data);
+        }
+
+        // Update students grid
+        function updateStudentsGrid() {
+            const grid = document.getElementById('studentsGrid');
+            grid.innerHTML = '';
+
+            // Convert students map to array and sort by latest alert timestamp (newest first)
+            const studentsArray = Array.from(students.entries()).map(([userId, student]) => ({
+                userId,
+                student
+            }));
+
+            // Sort: students with latest alerts first, then by alert count, then by name
+            studentsArray.sort((a, b) => {
+                const studentA = a.student;
+                const studentB = b.student;
+                
+                // Get latest alert timestamp for each student
+                const getLatestAlertTime = (student) => {
+                    // Check latestAlert first (most recent)
+                    if (student.latestAlert) {
+                        if (student.latestAlert.timestamp instanceof Date) {
+                            return student.latestAlert.timestamp.getTime();
+                        }
+                        if (typeof student.latestAlert.timestamp === 'string') {
+                            return new Date(student.latestAlert.timestamp).getTime();
+                        }
+                    }
+                    // Fallback to alertLogs
+                    if (student.alertLogs && student.alertLogs.length > 0) {
+                        const latest = student.alertLogs.reduce((latest, alert) => {
+                            let alertTime = 0;
+                            if (alert.timestamp) {
+                                alertTime = alert.timestamp instanceof Date 
+                                    ? alert.timestamp.getTime() 
+                                    : new Date(alert.timestamp).getTime();
+                            } else if (alert.time) {
+                                alertTime = alert.time instanceof Date 
+                                    ? alert.time.getTime() 
+                                    : new Date(alert.time).getTime();
+                            }
+                            return alertTime > latest ? alertTime : latest;
+                        }, 0);
+                        return latest;
+                    }
+                    return 0;
+                };
+
+                const timeA = getLatestAlertTime(studentA);
+                const timeB = getLatestAlertTime(studentB);
+                
+                // Students with alerts come first
+                if (timeA > 0 && timeB === 0) return -1;
+                if (timeA === 0 && timeB > 0) return 1;
+                
+                // If both have alerts, sort by timestamp (newest first)
+                if (timeA > 0 && timeB > 0) {
+                    return timeB - timeA; // Descending order (newest first)
+                }
+                
+                // If no alerts, sort by alert count (more alerts first)
+                const alertCountA = studentA.recentAlerts || (studentA.alertLogs ? studentA.alertLogs.length : 0);
+                const alertCountB = studentB.recentAlerts || (studentB.alertLogs ? studentB.alertLogs.length : 0);
+                if (alertCountA !== alertCountB) {
+                    return alertCountB - alertCountA; // Descending order (more alerts first)
+                }
+                
+                // Finally, sort by name
+                return (studentA.name || '').localeCompare(studentB.name || '');
+            });
+
+            // Render sorted students
+            studentsArray.forEach(({userId, student}) => {
+                const card = createStudentCard(student, userId);
+                grid.appendChild(card);
+                
+                if (student.videoFrame && student.videoFrame.length > 100) {
+                    setTimeout(() => {
+                        const videoContainer = card.querySelector('.student-video');
+                        const canvas = prepareVideoCanvas(userId, videoContainer);
+                        if (canvas) {
+                            hideVideoPlaceholder(videoContainer);
+                            renderFrameToCanvas(userId, canvas, student.videoFrame);
+                        }
+                    }, 50);
+                }
+            });
+        }
+
+        // Create student card
+        function createStudentCard(student, userId) {
+            const card = document.createElement('div');
+            card.className = 'student-card';
+            card.setAttribute('data-user-id', userId); // Add data attribute for easy lookup
+            card.onclick = () => selectStudent(student, userId);
+
+            const statusClass = student.status === 'online' ? 'online' : 'offline';
+            const statusDotClass = student.status === 'online' ? 'online' : 'offline';
+            
+            // AI Alert badge
+            const alertBadge = student.recentAlerts > 0 
+                ? `<span class="alert-badge" style="background: #dc3545; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75em; margin-left: 5px;">${student.recentAlerts} Alerts</span>`
+                : '';
+
+            card.innerHTML = `
+                <div class="student-header">
+                    <div>
+                        <div class="student-name">${student.name} ${alertBadge}</div>
+                        <div class="student-id">${student.studentId}</div>
+                        ${student.latestAlert ? `<div style="font-size: 0.8em; color: ${student.latestAlert.severity === 'Critical' ? '#dc3545' : '#ffc107'}; margin-top: 5px;">⚠️ ${student.latestAlert.type}: ${student.latestAlert.message}</div>` : ''}
+                    </div>
+                    <div class="student-status status-${statusClass}">
+                        <div class="status-dot ${statusDotClass}"></div>
+                        <span>${student.status}</span>
+                    </div>
+                </div>
+                <!-- Video container removed - no longer needed -->
+                <div class="student-actions">
+                    <button class="action-btn view" onclick="event.stopPropagation(); viewStudent('${userId}')">
+                        View Details
+                    </button>
+                    <button class="action-btn alert" onclick="event.stopPropagation(); sendAlertToStudent('${userId}')">
+                        Alert
+                    </button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        // Select student
+        function selectStudent(student, userId) {
+            // Remove previous selection
+            document.querySelectorAll('.student-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+
+            // Add selection to current card
+            event.currentTarget.classList.add('selected');
+            selectedStudent = { student, userId };
+        }
+
+        // View student details
+        function viewStudent(userId) {
+            const student = students.get(userId);
+            if (!student) return;
+
+            selectedStudent = { student, userId };
+            showStudentModal(student);
+        }
+
+        // Show student modal with all tabs and data
+        function showStudentModal(student) {
+            const modal = document.getElementById('studentModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalStudentName = document.getElementById('modalStudentName');
+            const modalStudentId = document.getElementById('modalStudentId');
+            const modalStatus = document.getElementById('modalStatus');
+            const modalJoinTime = document.getElementById('modalJoinTime');
+            const modalVideo = document.getElementById('modalVideo');
+
+            modalTitle.textContent = `${student.name} - Details`;
+            modalStudentName.textContent = student.name;
+            modalStudentId.textContent = student.studentId;
+            modalStatus.textContent = student.status;
+            modalJoinTime.textContent = student.joinTime.toLocaleString();
+
+            // Set initial video frame
+            if (student.videoFrame && student.videoFrame.length > 100) {
+                let frameData = student.videoFrame;
+                if (frameData && !frameData.startsWith('data:')) {
+                    frameData = 'data:image/jpeg;base64,' + frameData;
+                }
+                if (frameData && frameData.startsWith('data:image/')) {
+                    modalVideo.innerHTML = `<img src="${frameData}" alt="Student video" style="width: 100%; height: 100%; object-fit: cover;">`;
+                } else {
+                    modalVideo.innerHTML = '<div>No video feed available</div>';
+                }
+            } else {
+                modalVideo.innerHTML = '<div>No video feed available</div>';
+            }
+            
+            // Store reference to update video in real-time
+            // Ensure selectedStudent has correct userId
+            selectedStudent = { student, userId: student.userId || student.userId };
+            
+            // Clear any existing intervals
+            if (window.modalVideoUpdateInterval) {
+                clearInterval(window.modalVideoUpdateInterval);
+            }
+            if (window.chartUpdateInterval) {
+                clearInterval(window.chartUpdateInterval);
+            }
+            
+            // Start video update interval for real-time updates when modal opens
+            window.modalVideoUpdateInterval = setInterval(() => {
+                // Check if modal is still open
+                const modal = document.getElementById('studentModal');
+                if (!modal || modal.style.display === 'none') {
+                    clearInterval(window.modalVideoUpdateInterval);
+                    window.modalVideoUpdateInterval = null;
+                    return;
+                }
+                
+                // Check if selectedStudent is still valid
+                if (!selectedStudent || !selectedStudent.userId) {
+                    return;
+                }
+                
+                // Get latest video frame from student data
+                const currentStudent = students.get(selectedStudent.userId);
+                if (currentStudent && currentStudent.videoFrame && currentStudent.videoFrame.length > 100) {
+                    // Update modal video with latest frame
+                    updateModalVideo(selectedStudent.userId, currentStudent.videoFrame);
+                }
+            }, 300); // Update every 300ms to reduce lag (reduced from 200ms)
+            
+            // Start chart update interval - update charts every 1 minute instead of real-time
+            window.chartUpdateInterval = setInterval(() => {
+                // Check if modal is still open
+                const modal = document.getElementById('studentModal');
+                if (!modal || modal.style.display === 'none') {
+                    clearInterval(window.chartUpdateInterval);
+                    window.chartUpdateInterval = null;
+                    return;
+                }
+                
+                // Check if charts tab is active
+                const chartsTab = document.getElementById('tabCharts');
+                if (chartsTab && chartsTab.classList.contains('active') && selectedStudent && selectedStudent.userId) {
+                    const currentStudent = students.get(selectedStudent.userId);
+                    if (currentStudent) {
+                        console.log('📊 [Charts] Updating charts (1-minute interval)');
+                        populateChartsTab(currentStudent);
+                    }
+                }
+            }, 60000); // Update every 60 seconds (1 minute)
+            
+            // Start overlay update loop to ensure AI overlay bám sát với video
+            startModalOverlayUpdateLoop();
+
+            // Initialize student data structures if not exists
+            if (!student.aiData) {
+                student.aiData = {
+                    attentionHistory: [],
+                    stabilityHistory: [],
+                    faceLockHistory: [],
+                    facesDetectedHistory: []
+                };
+            }
+            if (!student.alertLogs) {
+                student.alertLogs = [];
+            }
+            if (!student.stats) {
+                student.stats = {
+                    totalAlerts: 0,
+                    criticalAlerts: 0,
+                    highAlerts: 0,
+                    mediumAlerts: 0,
+                    lowAlerts: 0,
+                    averageAttention: 0,
+                    averageStability: 0,
+                    faceDetectedCount: 0,
+                    totalFrames: 0
+                };
+            }
+
+            // Switch to overview tab
+            switchModalTab('overview', null);
+            
+            // Get fresh student data from students Map
+            const freshStudent = students.get(student.userId || student.userId);
+            const studentToUse = freshStudent || student;
+            
+            // Load data from database for this student
+            loadStudentDataFromAPI(studentToUse.userId || student.userId).then(() => {
+                // After loading from API, populate tabs with fresh data
+                const updatedStudent = students.get(student.userId || student.userId);
+                const finalStudent = updatedStudent || studentToUse;
+                
+                // AI tab removed
+                populateAlertLogsTab(finalStudent);
+                populateStatsTab(finalStudent);
+            });
+
+            modal.style.display = 'block';
+        }
+
+        // Load student data from API (alerts, stats, etc.)
+        async function loadStudentDataFromAPI(userId) {
+            if (!userId) {
+                console.warn('⚠️ [Monitoring] No userId provided to loadStudentDataFromAPI');
+                return;
+            }
+            
+            console.log('📥 [Monitoring] Loading data from API for user:', userId);
+            
+            try {
+                // Load alerts from API
+                const alertsResponse = await fetch(`/api/monitoring/student/${userId}/alerts?hours=24&classroom_id=${classroomId}`, {
+                    credentials: 'include'
+                });
+                
+                if (alertsResponse.ok) {
+                    const alertsData = await alertsResponse.json();
+                    console.log('✅ [Monitoring] Loaded alerts from API:', alertsData.totalAlerts, 'alerts');
+                    
+                    // Get or create student object
+                    let student = students.get(userId);
+                    if (!student) {
+                        student = {
+                            userId: userId,
+                            studentId: 'N/A',
+                            name: 'Unknown',
+                            status: 'online',
+                            joinTime: new Date(),
+                            videoFrame: null,
+                            isVerified: false,
+                            alertLogs: [],
+                            stats: {},
+                            aiData: {}
+                        };
+                        students.set(userId, student);
+                    }
+                    
+                    // Initialize structures if not exists
+                    if (!student.alertLogs) {
+                        student.alertLogs = [];
+                    }
+                    if (!student.stats) {
+                        student.stats = {
+                            totalAlerts: 0,
+                            criticalAlerts: 0,
+                            highAlerts: 0,
+                            mediumAlerts: 0,
+                            lowAlerts: 0,
+                            averageAttention: 0,
+                            averageStability: 0,
+                            faceDetectedCount: 0,
+                            totalFrames: 0
+                        };
+                    }
+                    
+                    // Merge alerts from API with existing alerts (avoid duplicates)
+                    const existingAlertIds = new Set(student.alertLogs.map(a => a.eventId));
+                    const newAlerts = alertsData.alerts.filter(a => !existingAlertIds.has(a.eventId));
+                    
+                    // Convert API alerts to alert log format
+                    newAlerts.forEach(alert => {
+                        student.alertLogs.push({
+                            eventType: alert.eventType,
+                            severity: alert.severity,
+                            message: alert.message || alert.metadata?.message || '',
+                            timestamp: alert.timestamp,
+                            time: new Date(alert.timestamp),
+                            eventId: alert.eventId
+                        });
+                    });
+                    
+                    // Keep only last 100 alerts
+                    if (student.alertLogs.length > 100) {
+                        student.alertLogs = student.alertLogs.slice(-100);
+                    }
+                    
+                    // Update stats from API data
+                    student.stats.totalAlerts = alertsData.totalAlerts || student.alertLogs.length;
+                    student.stats.criticalAlerts = alertsData.criticalAlerts || 0;
+                    student.stats.highAlerts = alertsData.highAlerts || 0;
+                    student.stats.mediumAlerts = alertsData.mediumAlerts || 0;
+                    student.stats.lowAlerts = alertsData.lowAlerts || 0;
+                    
+                    console.log('✅ [Monitoring] Updated student data:', {
+                        totalAlerts: student.stats.totalAlerts,
+                        criticalAlerts: student.stats.criticalAlerts,
+                        alertLogsCount: student.alertLogs.length
+                    });
+                } else {
+                    console.warn('⚠️ [Monitoring] Failed to load alerts:', alertsResponse.status, alertsResponse.statusText);
+                }
+            } catch (error) {
+                console.error('❌ [Monitoring] Error loading student data from API:', error);
+            }
+        }
+
+        // Switch modal tab
+        function switchModalTab(tabName, buttonElement) {
+            // Hide all tab contents
+            document.querySelectorAll('.modal-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.modal-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            const tabContent = document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
+            
+            // Add active class to clicked tab
+            if (buttonElement) {
+                buttonElement.classList.add('active');
+            }
+            
+            // Refresh charts when switching to charts tab
+            if (tabName === 'charts' && selectedStudent && selectedStudent.student) {
+                populateChartsTab(selectedStudent.student);
+            }
+        }
+
+        // AI Analysis tab removed
+
+        // Populate Alert Logs tab
+        function populateAlertLogsTab(student) {
+            const alertLogs = student.alertLogs || [];
+            const container = document.getElementById('alertLogsContainer');
+            
+            if (alertLogs.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #6c757d; padding: 2rem;">Chưa có cảnh báo nào</div>';
+                return;
+            }
+
+            // Sort by timestamp (newest first)
+            const sortedLogs = [...alertLogs].sort((a, b) => 
+                new Date(b.timestamp || b.time) - new Date(a.timestamp || a.time)
+            );
+
+            container.innerHTML = sortedLogs.map(alert => {
+                const severity = (alert.severity || alert.type || 'medium').toLowerCase();
+                const time = new Date(alert.timestamp || alert.time || Date.now()).toLocaleString('vi-VN');
+                const message = alert.message || alert.text || 'N/A';
+                const type = alert.eventType || alert.type || 'unknown';
+                
+                return `
+                    <div class="alert-log-item ${severity}">
+                        <div style="font-weight: 600; margin-bottom: 0.5rem;">
+                            ${getAlertIcon(severity)} ${type}
+                        </div>
+                        <div>${message}</div>
+                        <div class="alert-log-time">${time}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getAlertIcon(severity) {
+            const icons = {
+                critical: '🔴',
+                high: '🟠',
+                medium: '🟡',
+                low: '🟢'
+            };
+            return icons[severity] || '⚪';
+        }
+
+        // Filter alert logs
+        function filterAlertLogs() {
+            const searchTerm = document.getElementById('alertLogSearch').value.toLowerCase();
+            const items = document.querySelectorAll('.alert-log-item');
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(searchTerm) ? 'block' : 'none';
+            });
+        }
+
+        // Populate Statistics tab
+        function populateStatsTab(student) {
+            const stats = student.stats || {};
+            const grid = document.getElementById('statsGridDetail');
+            
+            grid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-card-value">${stats.totalAlerts || 0}</div>
+                    <div class="stat-card-label">Tổng cảnh báo</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value">${stats.criticalAlerts || 0}</div>
+                    <div class="stat-card-label">Cảnh báo nghiêm trọng</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value">${stats.highAlerts || 0}</div>
+                    <div class="stat-card-label">Cảnh báo cao</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value">${(stats.averageAttention * 100 || 0).toFixed(1)}%</div>
+                    <div class="stat-card-label">Độ chú ý trung bình</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value">${(stats.averageStability * 100 || 0).toFixed(1)}%</div>
+                    <div class="stat-card-label">Độ ổn định trung bình</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value">${stats.totalFrames || 0}</div>
+                    <div class="stat-card-label">Tổng số frame</div>
+                </div>
+            `;
+        }
+
+        // Populate Charts tab
+        let attentionChartInstance = null;
+        let alertTypeChartInstance = null;
+
+        function populateChartsTab(student) {
+            // Destroy existing charts
+            if (attentionChartInstance) attentionChartInstance.destroy();
+            if (alertTypeChartInstance) alertTypeChartInstance.destroy();
+
+            const aiData = student.aiData || {};
+            const alertLogs = student.alertLogs || [];
+
+            // Timeline Chart - Show violations/abnormal behavior with real timestamps, color-coded by alert type
+            const attentionCtx = document.getElementById('attentionChart').getContext('2d');
+            
+            // First, identify all unique alert types and assign colors
+            const alertTypeMap = {};
+            const typeColors = ['#ff4757', '#ff6348', '#ffa502', '#ffd32a', '#7bed9f', '#ff6b81', '#ff3838', '#70a1ff', '#5352ed', '#ff9ff3'];
+            let colorIndex = 0;
+            
+            alertLogs.forEach(alert => {
+                const alertName = alert.message || alert.eventType || alert.type || 'Không xác định';
+                const displayName = alertName.length > 35 ? alertName.substring(0, 35) + '...' : alertName;
+                
+                if (!alertTypeMap[displayName]) {
+                    alertTypeMap[displayName] = {
+                        color: typeColors[colorIndex % typeColors.length],
+                        index: colorIndex
+                    };
+                    colorIndex++;
+                }
+            });
+            
+            // Get all unique time labels and sort them
+            const allTimeLabels = new Set();
+            alertLogs.forEach(alert => {
+                const alertTime = new Date(alert.timestamp || alert.time || Date.now());
+                const timeLabel = alertTime.toLocaleTimeString('vi-VN', { 
+                    hour: '2-digit', 
+                    minute: '2-digit'
+                });
+                allTimeLabels.add(timeLabel);
+            });
+            
+            const sortedTimeLabels = Array.from(allTimeLabels).sort((a, b) => {
+                const timeA = new Date('2000-01-01 ' + a);
+                const timeB = new Date('2000-01-01 ' + b);
+                return timeA - timeB;
+            });
+            
+            // Group alerts by time and type
+            const violationTimeCounts = {};
+            alertLogs.forEach(alert => {
+                const alertTime = new Date(alert.timestamp || alert.time || Date.now());
+                const timeLabel = alertTime.toLocaleTimeString('vi-VN', { 
+                    hour: '2-digit', 
+                    minute: '2-digit'
+                });
+                
+                const alertName = alert.message || alert.eventType || alert.type || 'Không xác định';
+                const displayName = alertName.length > 35 ? alertName.substring(0, 35) + '...' : alertName;
+                
+                if (!violationTimeCounts[timeLabel]) {
+                    violationTimeCounts[timeLabel] = {};
+                }
+                
+                if (!violationTimeCounts[timeLabel][displayName]) {
+                    violationTimeCounts[timeLabel][displayName] = 0;
+                }
+                
+                violationTimeCounts[timeLabel][displayName] += 1;
+            });
+            
+            // Create datasets for each alert type
+            const alertTypes = Object.keys(alertTypeMap).sort((a, b) => {
+                return alertTypeMap[a].index - alertTypeMap[b].index;
+            });
+            
+            const datasets = alertTypes.map(alertType => {
+                const data = sortedTimeLabels.map(timeLabel => {
+                    return violationTimeCounts[timeLabel] && violationTimeCounts[timeLabel][alertType] 
+                        ? violationTimeCounts[timeLabel][alertType] 
+                        : 0;
+                });
+                
+                const colorInfo = alertTypeMap[alertType];
+                
+                return {
+                    label: alertType,
+                    data: data,
+                    borderColor: colorInfo.color,
+                    backgroundColor: colorInfo.color.replace(')', ', 0.3)').replace('rgb', 'rgba'),
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: colorInfo.color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    fill: false
+                };
+            });
+            
+            // If no data, create a default dataset
+            if (datasets.length === 0) {
+                datasets.push({
+                    label: 'Chưa có dữ liệu',
+                    data: [0],
+                    borderColor: '#ff4757',
+                    backgroundColor: 'rgba(255, 71, 87, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                });
+            }
+
+            attentionChartInstance = new Chart(attentionCtx, {
+                type: 'line',
+                data: {
+                    labels: sortedTimeLabels.length > 0 ? sortedTimeLabels : ['Chưa có dữ liệu'],
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Thời gian vi phạm / Bất thường'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                padding: 8,
+                                font: {
+                                    size: 10
+                                },
+                                generateLabels: function(chart) {
+                                    const original = Chart.defaults.plugins.legend.labels.generateLabels;
+                                    const labels = original.call(this, chart);
+                                    labels.forEach(label => {
+                                        label.strokeStyle = label.fillStyle;
+                                        label.lineWidth = 2;
+                                    });
+                                    return labels;
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y + ' lần';
+                                    }
+                                    return label;
+                                },
+                                afterBody: function(context) {
+                                    const timeLabel = context[0].label;
+                                    const total = context.reduce((sum, item) => sum + (item.parsed.y || 0), 0);
+                                    return total > 0 ? `Tổng: ${total} vi phạm` : '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Số lượng vi phạm'
+                            },
+                            ticks: {
+                                stepSize: 1
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Thời gian (giờ:phút)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Alert Type Distribution Chart - Use message (name) instead of eventType (ID)
+            const alertTypeCtx = document.getElementById('alertTypeChart').getContext('2d');
+            const alertMessages = {};
+            alertLogs.forEach(alert => {
+                // Use message (name) instead of eventType (ID)
+                const alertName = alert.message || alert.eventType || alert.type || 'Không xác định';
+                // Extract first meaningful part of message if too long
+                const displayName = alertName.length > 30 ? alertName.substring(0, 30) + '...' : alertName;
+                alertMessages[displayName] = (alertMessages[displayName] || 0) + 1;
+            });
+
+            const messageLabels = Object.keys(alertMessages);
+            const messageData = messageLabels.map(msg => alertMessages[msg]);
+            const doughnutColors = ['#ff4757', '#ff6348', '#ffa502', '#ffd32a', '#7bed9f', '#ff6b81', '#ff3838'];
+
+            alertTypeChartInstance = new Chart(alertTypeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: messageLabels.length > 0 ? messageLabels : ['Chưa có dữ liệu'],
+                    datasets: [{
+                        data: messageData.length > 0 ? messageData : [0],
+                        backgroundColor: doughnutColors.slice(0, messageLabels.length)
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Phân bố loại cảnh báo'
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 10,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Close modal
+        function closeModal() {
+            const modal = document.getElementById('studentModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            
+            // Clear video update interval
+            if (window.modalVideoUpdateInterval) {
+                clearInterval(window.modalVideoUpdateInterval);
+                window.modalVideoUpdateInterval = null;
+            }
+            
+            // Clear chart update interval
+            if (window.chartUpdateInterval) {
+                clearInterval(window.chartUpdateInterval);
+                window.chartUpdateInterval = null;
+            }
+            
+            // Clear tracking history when modal closes
+            if (selectedStudent && selectedStudent.userId) {
+                modalFaceTrackingHistory.delete(selectedStudent.userId);
+            }
+            
+            // Clear selected student
+            selectedStudent = null;
+        }
+
+        // Send alert to student
+        function sendAlertToStudent(userId) {
+            if (!socket) return;
+
+            socket.emit('send_alert', {
+                target_user: userId,
+                message: 'Please pay attention to the class',
+                type: 'alert'
+            });
+
+            console.log('Alert sent to student:', userId);
+        }
+
+        // Send alert
+        function sendAlert() {
+            if (!selectedStudent) return;
+            sendAlertToStudent(selectedStudent.userId);
+        }
+
+        // Send warning
+        function sendWarning() {
+            if (!selectedStudent || !socket) return;
+
+            socket.emit('send_alert', {
+                target_user: selectedStudent.userId,
+                message: 'Warning: Please maintain proper behavior',
+                type: 'warning'
+            });
+
+            console.log('Warning sent to student:', selectedStudent.userId);
+        }
+
+        // Refresh students
+        function refreshStudents() {
+            updateStudentsGrid();
+            updateStats();
+            console.log('Students refreshed');
+        }
+
+        // Update stats
+        async function updateStats() {
+            const totalStudents = students.size;
+            const onlineStudents = Array.from(students.values()).filter(s => s.status === 'online').length;
+            const verifiedStudents = Array.from(students.values()).filter(s => s.isVerified).length;
+            
+            // Load AI alerts from API
+            let alertsCount = 0;
+            try {
+                const alertsResponse = await fetch(`/api/monitoring/alerts/${classroomId}?hours=24`, {
+                    credentials: 'include'
+                });
+                if (alertsResponse.ok) {
+                    const alertsData = await alertsResponse.json();
+                    alertsCount = alertsData.totalAlerts || 0;
+                } else if (alertsResponse.status === 403) {
+                    const message = await alertsResponse.json().catch(() => null);
+                    showMonitoringWarning(message && message.message ? message.message : 'Monitoring alerts are restricted for this account.');
+                    console.warn('Access denied when loading monitoring alerts.');
+                }
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+
+            document.getElementById('totalStudents').textContent = totalStudents;
+            document.getElementById('onlineStudents').textContent = onlineStudents;
+            document.getElementById('verifiedStudents').textContent = verifiedStudents;
+            document.getElementById('alertsCount').textContent = alertsCount;
+        }
+
+        // Handle AI monitoring alerts
+        function handleMonitoringAlert(data) {
+            console.log('🚨 [Monitoring] handleMonitoringAlert called:', {
+                eventType: data?.eventType,
+                severity: data?.severity,
+                message: data?.message,
+                userId: data?.user_id,
+                timestamp: data?.timestamp
+            });
+            
+            if (!data || !data.user_id) {
+                console.error('❌ [Monitoring] Invalid alert data:', data);
+                return;
+            }
+            
+            const student = students.get(data.user_id);
+            console.log('👤 [Monitoring] Student found:', {
+                userId: data.user_id,
+                studentExists: !!student,
+                studentName: student?.name,
+                studentId: student?.studentId
+            });
+            if (student) {
+                // Initialize alert logs if not exists
+                if (!student.alertLogs) {
+                    student.alertLogs = [];
+                }
+                if (!student.stats) {
+                    student.stats = {
+                        totalAlerts: 0,
+                        criticalAlerts: 0,
+                        highAlerts: 0,
+                        mediumAlerts: 0,
+                        lowAlerts: 0,
+                        averageAttention: 0,
+                        averageStability: 0,
+                        faceDetectedCount: 0,
+                        totalFrames: 0
+                    };
+                }
+                
+                // Add alert to logs
+                const alertEntry = {
+                    eventType: data.eventType,
+                    severity: data.severity || 'medium',
+                    message: data.message,
+                    timestamp: data.timestamp || new Date().toISOString(),
+                    time: new Date(data.timestamp || Date.now())
+                };
+                student.alertLogs.push(alertEntry);
+                
+                // Keep only last 100 alerts
+                if (student.alertLogs.length > 100) {
+                    student.alertLogs.shift();
+                }
+                
+                // Update stats
+                student.recentAlerts = (student.recentAlerts || 0) + 1;
+                student.stats.totalAlerts = (student.stats.totalAlerts || 0) + 1;
+                
+                const severity = (data.severity || 'medium').toLowerCase();
+                if (severity === 'critical') {
+                    student.stats.criticalAlerts = (student.stats.criticalAlerts || 0) + 1;
+                } else if (severity === 'high') {
+                    student.stats.highAlerts = (student.stats.highAlerts || 0) + 1;
+                } else if (severity === 'medium') {
+                    student.stats.mediumAlerts = (student.stats.mediumAlerts || 0) + 1;
+                } else if (severity === 'low') {
+                    student.stats.lowAlerts = (student.stats.lowAlerts || 0) + 1;
+                }
+                
+                student.latestAlert = {
+                    type: data.eventType,
+                    severity: data.severity,
+                    message: data.message,
+                    timestamp: new Date()
+                };
+                
+                // Update the student card to show alert badge
+                updateStudentsGrid();
+                updateStats();
+                
+                // Refresh modal tabs if modal is open for this student
+                if (selectedStudent && selectedStudent.userId === data.user_id) {
+                    const modal = document.getElementById('studentModal');
+                    if (modal && modal.style.display !== 'none') {
+                        // Get fresh student data from Map
+                        const currentStudent = students.get(data.user_id);
+                        if (currentStudent) {
+                            populateAlertLogsTab(currentStudent);
+                            populateStatsTab(currentStudent);
+                            // Charts are updated every 1 minute, not in real-time
+                            // Don't refresh charts here to avoid constant updates
+                        }
+                    }
+                }
+                
+                // Show notification if critical
+                if (data.severity === 'Critical' || data.severity === 'high') {
+                    showAlertNotification(student, data);
+                }
+            }
+        }
+        
+        function handleMonitoringOverlay(data) {
+            console.log('🔍 [Monitoring] handleMonitoringOverlay called with:', {
+                hasData: !!data,
+                hasUserId: !!data?.user_id,
+                hasFaceData: !!data?.face_data,
+                userId: data?.user_id,
+                studentId: data?.student_id
+            });
+            
+            if (!data || !data.user_id || !data.face_data) {
+                console.warn('⚠️ [Monitoring] Invalid monitoring overlay data:', data);
+                return;
+            }
+            const userId = data.user_id;
+            const faceData = data.face_data;
+            const attention = data.attention || {};
+            
+            if (!faceData.faces || faceData.faces.length === 0) {
+                clearOverlay(userId);
+                // No separate overlay canvas - overlay is drawn directly on video frame
+            } else {
+                drawFaceOverlay(userId, faceData, attention);
+            }
+            
+            const student = students.get(userId);
+            if (student) {
+                // Initialize AI data structure if not exists
+                if (!student.aiData) {
+                    student.aiData = {
+                        attentionHistory: [],
+                        stabilityHistory: [],
+                        faceLockHistory: [],
+                        facesDetectedHistory: []
+                    };
+                }
+                
+                // Store last face data for AI overlay (important for modal)
+                student.lastFaceData = faceData;
+                student.lastAttention = attention;
+                
+                // Store attention score
+                if (attention && typeof attention.score === 'number') {
+                    student.attentionScore = attention.score;
+                    // Add to history (keep last 50 entries)
+                    student.aiData.attentionHistory.push(attention.score);
+                    if (student.aiData.attentionHistory.length > 50) {
+                        student.aiData.attentionHistory.shift();
+                    }
+                }
+                
+                // Store stability score
+                if (faceData.stability_score !== undefined) {
+                    student.aiData.stabilityHistory.push(faceData.stability_score);
+                    if (student.aiData.stabilityHistory.length > 50) {
+                        student.aiData.stabilityHistory.shift();
+                    }
+                }
+                
+                // Store face lock status
+                student.aiData.faceLockHistory.push(faceData.face_locked || false);
+                if (student.aiData.faceLockHistory.length > 50) {
+                    student.aiData.faceLockHistory.shift();
+                }
+                
+                // Store faces detected count
+                const facesCount = faceData.faces ? faceData.faces.length : 0;
+                student.aiData.facesDetectedHistory.push(facesCount);
+                if (student.aiData.facesDetectedHistory.length > 50) {
+                    student.aiData.facesDetectedHistory.shift();
+                }
+                
+                // Update modal overlay immediately if modal is open for this student
+                if (selectedStudent && selectedStudent.userId === userId) {
+                    const modal = document.getElementById('studentModal');
+                    if (modal && modal.style.display !== 'none') {
+                        // Force update overlay immediately when monitoring_overlay event is received
+                        // This ensures overlay bám sát với video frame và target gương mặt
+                        requestAnimationFrame(() => {
+                            updateModalAIOverlay();
+                        });
+                        // Also trigger overlay update in next frame to ensure smooth tracking
+                        setTimeout(() => {
+                            updateModalAIOverlay();
+                        }, 50);
+                    }
+                }
+                
+                // Initialize stats if not exists
+                if (!student.stats) {
+                    student.stats = {
+                        totalAlerts: student.alertLogs ? student.alertLogs.length : 0,
+                        criticalAlerts: 0,
+                        highAlerts: 0,
+                        mediumAlerts: 0,
+                        lowAlerts: 0,
+                        averageAttention: 0,
+                        averageStability: 0,
+                        faceDetectedCount: 0,
+                        totalFrames: 0
+                    };
+                    
+                    // Count alerts by severity
+                    if (student.alertLogs && student.alertLogs.length > 0) {
+                        student.alertLogs.forEach(alert => {
+                            const severity = (alert.severity || 'medium').toLowerCase();
+                            if (severity === 'critical') student.stats.criticalAlerts++;
+                            else if (severity === 'high') student.stats.highAlerts++;
+                            else if (severity === 'medium') student.stats.mediumAlerts++;
+                            else if (severity === 'low') student.stats.lowAlerts++;
+                        });
+                    }
+                }
+                
+                // Calculate average attention
+                if (student.aiData.attentionHistory.length > 0) {
+                    const sum = student.aiData.attentionHistory.reduce((a, b) => a + b, 0);
+                    student.stats.averageAttention = sum / student.aiData.attentionHistory.length;
+                }
+                
+                // Calculate average stability
+                if (student.aiData.stabilityHistory.length > 0) {
+                    const sum = student.aiData.stabilityHistory.reduce((a, b) => a + b, 0);
+                    student.stats.averageStability = sum / student.aiData.stabilityHistory.length;
+                }
+                
+                // Update frame count
+                student.stats.totalFrames = (student.stats.totalFrames || 0) + 1;
+                student.stats.faceDetectedCount = facesCount;
+                
+                // Refresh modal tabs if modal is open for this student
+                if (selectedStudent && selectedStudent.userId === userId) {
+                    const modal = document.getElementById('studentModal');
+                    if (modal && modal.style.display !== 'none') {
+                        // Get fresh student data from Map
+                        const currentStudent = students.get(userId);
+                        if (currentStudent) {
+                            // Refresh tabs with updated data
+                            // AI tab removed
+                            populateStatsTab(currentStudent);
+                            populateAlertLogsTab(currentStudent);
+                            // Charts are updated every 1 minute, not in real-time
+                            // Don't refresh charts here to avoid constant updates
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Show alert notification
+        function showAlertNotification(student, alertData) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = 'alert-notification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${alertData.severity === 'Critical' ? '#dc3545' : '#ffc107'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+                max-width: 400px;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 5px;">⚠️ AI Alert: ${alertData.eventType}</div>
+                <div style="font-size: 0.9em;">${student.name} (${student.studentId})</div>
+                <div style="font-size: 0.85em; margin-top: 5px; opacity: 0.9;">${alertData.message || ''}</div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+        
+        // Logout function
+        function logout() {
+            if (isMonitoring) {
+                stopMonitoring();
+            }
+            window.location.href = '/logout';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('studentModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initSocket();
+            updateMonitoringStatus();
+            updateButtons();
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (isMonitoring) {
+                stopMonitoring();
+            }
+        });
+    </script>
+</body>
+</html>
