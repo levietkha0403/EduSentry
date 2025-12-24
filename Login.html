@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSentry - Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* A light grey background */
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .login-card {
+            background: linear-gradient(135deg, #ffffff, #f9fafb);
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+
+    <!-- Login Section -->
+    <div id="login-section" class="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+        <div class="w-full max-w-md">
+            <div class="login-card shadow-2xl rounded-2xl p-8 md:p-12">
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-bold text-gray-800">
+                        <span class="text-red-700">Edu</span>Sentry
+                    </h1>
+                    <p class="text-gray-500 mt-2">Smart Learning Monitoring System</p>
+                </div>
+                
+                <!-- Login Form -->
+                <form id="login-form">
+                    <div class="mb-4">
+                        <label for="email" class="block text-sm font-medium text-gray-600 mb-1">Email</label>
+                        <input type="email" id="email" name="email" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="teacher@example.com" required>
+                    </div>
+                    <div class="mb-6">
+                        <label for="password" class="block text-sm font-medium text-gray-600 mb-1">Password</label>
+                        <input type="password" id="password" name="password" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="w-full bg-red-700 text-white font-semibold py-2.5 rounded-lg hover:bg-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-700 transition duration-300">
+                        Sign In
+                    </button>
+                    <div id="login-message" class="mt-4 text-center text-sm text-red-600"></div>
+                </form>
+
+                <!-- Registration Form (Initially Hidden) -->
+                <form id="register-form" class="hidden">
+                    <div class="mb-4">
+                        <label for="reg-firstName" class="block text-sm font-medium text-gray-600 mb-1">First Name</label>
+                        <input type="text" id="reg-firstName" name="firstName" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="John" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="reg-lastName" class="block text-sm font-medium text-gray-600 mb-1">Last Name</label>
+                        <input type="text" id="reg-lastName" name="lastName" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="Doe" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="reg-email" class="block text-sm font-medium text-gray-600 mb-1">Email</label>
+                        <input type="email" id="reg-email" name="email" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="student@example.com" required>
+                    </div>
+                    <div class="mb-4">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p class="text-sm text-blue-700">
+                                <span class="font-semibold">Student ID:</span> Sẽ được tự động tạo (STU01, STU02, STU03...)
+                            </p>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label for="reg-password" class="block text-sm font-medium text-gray-600 mb-1">Password</label>
+                        <input type="password" id="reg-password" name="password" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="••••••••" required>
+                        <p class="text-xs text-gray-500 mt-1">Password must be at least 6 characters long</p>
+                    </div>
+                    
+                    <!-- Face Registration Section -->
+                    <div id="face-registration-section" class="mb-6 hidden">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-yellow-800 mb-3">
+                                <strong>📸 Đăng ký nhận diện khuôn mặt:</strong> Vui lòng bật camera và chụp ảnh khuôn mặt của bạn để đăng ký.
+                            </p>
+                            <div class="camera-preview-container mb-3">
+                                <video id="face-video" autoplay playsinline class="w-full rounded-lg border-2 border-gray-300" style="max-height: 200px; display: none;"></video>
+                                <canvas id="face-canvas" style="display: none;"></canvas>
+                                <div id="face-placeholder" class="bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
+                                    <p class="text-gray-500">Camera preview sẽ hiển thị ở đây</p>
+                                </div>
+                            </div>
+                            <button type="button" id="start-camera-btn" class="w-full bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition">
+                                📷 Bật Camera
+                            </button>
+                            <button type="button" id="capture-face-btn" class="w-full bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition mt-2 hidden">
+                                ✅ Chụp Ảnh Đăng Ký
+                            </button>
+                            <div id="face-status" class="mt-2 text-sm text-center"></div>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" id="register-submit-btn" class="w-full bg-green-700 text-white font-semibold py-2.5 rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-700 transition duration-300">
+                        Create Account
+                    </button>
+                    <div id="register-message" class="mt-4 text-center text-sm text-red-600"></div>
+                </form>
+
+                <!-- Toggle between Login and Register -->
+                <div class="mt-6 text-center">
+                    <button id="toggle-form" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        Don't have an account? Sign up
+                    </button>
+                </div>
+            </div>
+             <p class="text-center text-gray-500 text-xs mt-6">
+                &copy;2025 EduSentry Project. C1SE.53 Team.
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Section (Initially Hidden) -->
+    <div id="dashboard-section" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-md sticky top-0 z-10">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">
+                    <span class="text-red-700">Edu</span>Sentry
+                </h1>
+                <div class="flex items-center space-x-4">
+                    <span id="user-greeting" class="text-gray-600"></span>
+                    <button id="logout-button" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto p-4 md:p-6 lg:p-8">
+            <h2 class="text-3xl font-bold text-gray-800 mb-6">Teacher Dashboard</h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column: Courses and Sessions -->
+                <div class="lg:col-span-2 space-y-6">
+                    <!-- Courses Card -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold mb-4 border-b pb-2">My Courses</h3>
+                        <div id="courses-list" class="space-y-3 max-h-60 overflow-y-auto">
+                            <!-- Course items will be injected here -->
+                            <p class="text-gray-500">Loading courses...</p>
+                        </div>
+                    </div>
+
+                    <!-- Monitoring Sessions Card -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold mb-4 border-b pb-2">Upcoming Monitoring Sessions</h3>
+                        <div id="sessions-list" class="space-y-4 max-h-96 overflow-y-auto">
+                           <!-- Session items will be injected here -->
+                            <p class="text-gray-500">Loading sessions...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Quick Actions & Live Feed -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold mb-4 border-b pb-2">Quick Actions</h3>
+                        <div class="space-y-3">
+                            <button class="w-full text-left bg-blue-500 text-white p-3 rounded-lg hover:bg-blue-600 transition">Create New Session</button>
+                            <button class="w-full text-left bg-green-500 text-white p-3 rounded-lg hover:bg-green-600 transition">Enroll Students</button>
+                            <button class="w-full text-left bg-gray-700 text-white p-3 rounded-lg hover:bg-gray-800 transition">View Reports</button>
+                        </div>
+                    </div>
+                    
+                    <!-- This is a placeholder for the live monitoring feature -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h3 class="text-xl font-semibold mb-4 border-b pb-2">Live Monitoring Feed</h3>
+                        <div class="bg-gray-800 rounded-lg p-4 h-64 flex items-center justify-center">
+                            <p class="text-gray-400">No active session being monitored</p>
+                        </div>
+                         <button id="start-monitoring-btn" class="w-full mt-4 bg-red-700 text-white font-semibold py-2 rounded-lg hover:bg-red-800 transition">
+                            Start Mock Monitoring
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Face Recognition Client Script -->
+    <script src="/static/js/face-recognition-client.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const API_BASE_URL = window.location.origin;
+            let faceRegistered = false;
+            let cameraInitialized = false;
+
+            const loginSection = document.getElementById('login-section');
+            const dashboardSection = document.getElementById('dashboard-section');
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const loginMessage = document.getElementById('login-message');
+            const registerMessage = document.getElementById('register-message');
+            const toggleFormBtn = document.getElementById('toggle-form');
+            
+            const userGreeting = document.getElementById('user-greeting');
+            const logoutButton = document.getElementById('logout-button');
+            
+            const coursesList = document.getElementById('courses-list');
+            const sessionsList = document.getElementById('sessions-list');
+            const startMonitoringBtn = document.getElementById('start-monitoring-btn');
+
+            // --- Check for existing session ---
+            const checkLoginState = () => {
+                const url = new URL(window.location.href);
+                if (url.pathname === '/login' || url.searchParams.get('logout') === '1') {
+                    showLogin();
+                    return;
+                }
+                const user = sessionStorage.getItem('eduSentryUser');
+                if (user) {
+                    const userData = JSON.parse(user);
+                    showDashboard(userData);
+                } else {
+                    showLogin();
+                }
+            };
+
+            // --- UI Display Functions ---
+            const showDashboard = (userData) => {
+                loginSection.classList.add('hidden');
+                dashboardSection.classList.remove('hidden');
+                userGreeting.textContent = `Welcome, ${userData.firstName}!`;
+                fetchCourses();
+                fetchSessions();
+            };
+
+            const showLogin = () => {
+                loginSection.classList.remove('hidden');
+                dashboardSection.classList.add('hidden');
+                sessionStorage.removeItem('eduSentryUser');
+            };
+
+            // --- Form Toggle Functions ---
+            const showLoginForm = () => {
+                loginForm.classList.remove('hidden');
+                registerForm.classList.add('hidden');
+                toggleFormBtn.textContent = "Don't have an account? Sign up";
+                loginMessage.textContent = '';
+                registerMessage.textContent = '';
+            };
+
+            const showRegisterForm = () => {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                toggleFormBtn.textContent = "Already have an account? Sign in";
+                loginMessage.textContent = '';
+                registerMessage.textContent = '';
+                // Show face registration section
+                document.getElementById('face-registration-section').classList.remove('hidden');
+                faceRegistered = false;
+                cameraInitialized = false;
+            };
+            
+            // Face Registration Handlers
+            const startCameraBtn = document.getElementById('start-camera-btn');
+            const captureFaceBtn = document.getElementById('capture-face-btn');
+            const faceStatus = document.getElementById('face-status');
+            const faceVideo = document.getElementById('face-video');
+            const facePlaceholder = document.getElementById('face-placeholder');
+            
+            startCameraBtn?.addEventListener('click', async () => {
+                try {
+                    await window.faceRecognitionClient.initialize('face-video', 'face-canvas');
+                    faceVideo.style.display = 'block';
+                    facePlaceholder.style.display = 'none';
+                    startCameraBtn.classList.add('hidden');
+                    captureFaceBtn.classList.remove('hidden');
+                    cameraInitialized = true;
+                    faceStatus.textContent = '✅ Camera đã sẵn sàng. Vui lòng chụp ảnh.';
+                    faceStatus.className = 'mt-2 text-sm text-center text-green-600';
+                } catch (error) {
+                    faceStatus.textContent = '❌ Lỗi: ' + error.message;
+                    faceStatus.className = 'mt-2 text-sm text-center text-red-600';
+                }
+            });
+            
+            captureFaceBtn?.addEventListener('click', async () => {
+                if (!cameraInitialized) {
+                    faceStatus.textContent = '❌ Vui lòng bật camera trước.';
+                    faceStatus.className = 'mt-2 text-sm text-center text-red-600';
+                    return;
+                }
+                
+                try {
+                    captureFaceBtn.disabled = true;
+                    captureFaceBtn.textContent = '⏳ Đang xử lý...';
+                    faceStatus.textContent = '⏳ Đang xử lý ảnh...';
+                    
+                    // Capture will be done after registration
+                    faceRegistered = true;
+                    captureFaceBtn.textContent = '✅ Đã chụp ảnh';
+                    faceStatus.textContent = '✅ Ảnh đã được chụp. Bạn có thể đăng ký tài khoản.';
+                    faceStatus.className = 'mt-2 text-sm text-center text-green-600';
+                } catch (error) {
+                    faceStatus.textContent = '❌ Lỗi: ' + error.message;
+                    faceStatus.className = 'mt-2 text-sm text-center text-red-600';
+                    captureFaceBtn.disabled = false;
+                    captureFaceBtn.textContent = '✅ Chụp Ảnh Đăng Ký';
+                }
+            });
+
+            // --- API Fetch Functions ---
+            const fetchCourses = async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/courses`);
+                    const courses = await response.json();
+                    
+                    if (!response.ok) throw new Error(courses.message || 'Failed to fetch');
+
+                    coursesList.innerHTML = ''; // Clear loading text
+                    if (courses.length === 0) {
+                         coursesList.innerHTML = '<p class="text-gray-500">No courses found.</p>';
+                         return;
+                    }
+                    courses.forEach(course => {
+                        const courseEl = document.createElement('div');
+                        courseEl.className = 'p-3 bg-gray-50 rounded-lg border';
+                        courseEl.innerHTML = `
+                            <p class="font-semibold text-gray-700">${course.CourseName} <span class="text-sm font-normal text-gray-500">(${course.CourseCode})</span></p>
+                            <p class="text-sm text-gray-600 truncate">${course.Description || 'No description available.'}</p>
+                        `;
+                        coursesList.appendChild(courseEl);
+                    });
+                } catch (error) {
+                    coursesList.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+                }
+            };
+
+            const fetchSessions = async () => {
+                 try {
+                    const response = await fetch(`${API_BASE_URL}/api/sessions`);
+                    const sessions = await response.json();
+
+                    if (!response.ok) throw new Error(sessions.message || 'Failed to fetch');
+
+                    sessionsList.innerHTML = ''; // Clear loading text
+                     if (sessions.length === 0) {
+                         sessionsList.innerHTML = '<p class="text-gray-500">No monitoring sessions scheduled.</p>';
+                         return;
+                    }
+                    sessions.forEach(session => {
+                        const sessionEl = document.createElement('div');
+                        sessionEl.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg border';
+                        const sessionTypeClass = session.SessionType === 'Exam' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800';
+                        const startTime = new Date(session.StartTime).toLocaleString();
+
+                        sessionEl.innerHTML = `
+                            <div>
+                                <p class="font-semibold">${session.SessionName}</p>
+                                <p class="text-sm text-gray-500">${session.CourseName}</p>
+                                <p class="text-xs text-gray-400">Starts: ${startTime}</p>
+                            </div>
+                            <span class="text-xs font-semibold px-2 py-1 rounded-full ${sessionTypeClass}">
+                                ${session.SessionType}
+                            </span>
+                        `;
+                        sessionsList.appendChild(sessionEl);
+                    });
+                } catch (error) {
+                    sessionsList.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+                }
+            };
+
+            // --- Event Listeners ---
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                loginMessage.textContent = '';
+                const email = loginForm.email.value;
+                const password = loginForm.password.value;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        sessionStorage.setItem('eduSentryUser', JSON.stringify(data.user));
+                        // Redirect by role
+                        const role = (data.user.roleName || '').toLowerCase();
+                        if (role === 'admin') {
+                            window.location.href = '/admin';
+                        } else if (role === 'teacher') {
+                            window.location.href = '/teacher';
+                        } else if (role === 'examination') {
+                            window.location.href = '/examination';
+                        } else {
+                            window.location.href = '/dashboard';
+                        }
+                    } else {
+                        throw new Error(data.message || 'Login failed');
+                    }
+                } catch (error) {
+                    loginMessage.textContent = error.message;
+                }
+            });
+
+            registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                registerMessage.textContent = '';
+                
+                const firstName = registerForm.firstName.value;
+                const lastName = registerForm.lastName.value;
+                const email = registerForm.email.value;
+                const password = registerForm.password.value;
+
+                try {
+                    // Step 1: Register account
+                    const response = await fetch(`${API_BASE_URL}/api/register`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            firstName, 
+                            lastName, 
+                            email, 
+                            password 
+                        })
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Registration failed');
+                    }
+
+                    const studentId = data.user.studentId;
+                    const userId = data.user.userId;
+                    
+                    // Step 2: Register face if camera was used
+                    if (cameraInitialized && faceVideo.style.display !== 'none') {
+                        try {
+                            registerMessage.textContent = 'Đang đăng ký khuôn mặt...';
+                            registerMessage.className = 'mt-4 text-center text-sm text-blue-600';
+                            
+                            // Login first to get session
+                            const loginResponse = await fetch(`${API_BASE_URL}/api/login`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ email, password })
+                            });
+                            
+                            if (loginResponse.ok) {
+                                // Register face
+                                const faceResult = await window.faceRecognitionClient.registerFace(studentId);
+                                
+                                if (faceResult.status === 'registered') {
+                                    registerMessage.innerHTML = `✅ Đăng ký thành công! Student ID: <strong>${studentId}</strong><br>✅ Đã đăng ký nhận diện khuôn mặt.`;
+                                    registerMessage.className = 'mt-4 text-center text-sm text-green-600';
+                                } else {
+                                    registerMessage.innerHTML = `⚠️ Đăng ký tài khoản thành công (Student ID: <strong>${studentId}</strong>) nhưng đăng ký khuôn mặt thất bại. Bạn có thể đăng ký lại sau.`;
+                                    registerMessage.className = 'mt-4 text-center text-sm text-yellow-600';
+                                }
+                            } else {
+                                registerMessage.innerHTML = `✅ Đăng ký tài khoản thành công! Student ID: <strong>${studentId}</strong><br>⚠️ Vui lòng đăng nhập và đăng ký khuôn mặt sau.`;
+                                registerMessage.className = 'mt-4 text-center text-sm text-yellow-600';
+                            }
+                        } catch (faceError) {
+                            console.error('Face registration error:', faceError);
+                            registerMessage.innerHTML = `✅ Đăng ký tài khoản thành công! Student ID: <strong>${studentId}</strong><br>⚠️ Đăng ký khuôn mặt thất bại: ${faceError.message}. Bạn có thể đăng ký lại sau.`;
+                            registerMessage.className = 'mt-4 text-center text-sm text-yellow-600';
+                        }
+                    } else {
+                        registerMessage.innerHTML = `✅ Đăng ký thành công! Student ID: <strong>${studentId}</strong><br>⚠️ Bạn chưa đăng ký khuôn mặt. Vui lòng đăng nhập và đăng ký sau.`;
+                        registerMessage.className = 'mt-4 text-center text-sm text-yellow-600';
+                    }
+                    
+                    // Clear form and stop camera
+                    registerForm.reset();
+                    if (window.faceRecognitionClient) {
+                        window.faceRecognitionClient.stop();
+                    }
+                    
+                    // Switch to login form after 5 seconds
+                    setTimeout(() => {
+                        showLoginForm();
+                    }, 5000);
+                } catch (error) {
+                    registerMessage.textContent = error.message;
+                    registerMessage.className = 'mt-4 text-center text-sm text-red-600';
+                }
+            });
+
+            toggleFormBtn.addEventListener('click', () => {
+                if (loginForm.classList.contains('hidden')) {
+                    showLoginForm();
+                } else {
+                    showRegisterForm();
+                }
+            });
+
+            logoutButton.addEventListener('click', () => {
+                showLogin();
+            });
+
+            startMonitoringBtn.addEventListener('click', async () => {
+                // This is a mock function to demonstrate the API call
+                alert('Simulating start of monitoring session. Check the backend console.');
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/monitor/start`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionId: 'session_123', studentId: 'student_456' })
+                    });
+                     const data = await response.json();
+                     if(response.ok) {
+                         console.log('Monitoring started:', data);
+                         alert(`Backend says: ${data.message}`);
+                     } else {
+                         throw new Error(data.message);
+                     }
+                } catch(error) {
+                    console.error('Failed to start monitoring:', error);
+                    alert(`Error: ${error.message}`);
+                }
+            });
+
+            // --- Initial Load ---
+            checkLoginState();
+        });
+    </script>
+</body>
+</html>
