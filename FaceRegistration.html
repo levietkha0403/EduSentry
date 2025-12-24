@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSentry - Đăng ký khuôn mặt</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #9face6 0%, #74ebd5 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15);
+            max-width: 720px;
+            width: 100%;
+            padding: 32px;
+        }
+        .card h1 {
+            margin: 0 0 8px;
+            font-size: 28px;
+            color: #1f2937;
+            font-weight: 700;
+        }
+        .subtitle {
+            margin: 0 0 24px;
+            color: #4b5563;
+            font-size: 15px;
+        }
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .status-chip.info {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+        .status-chip.success {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .status-chip.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .video-wrapper {
+            position: relative;
+            border-radius: 18px;
+            overflow: hidden;
+            background: #111827;
+            border: 3px solid rgba(148, 163, 184, 0.35);
+            min-height: 320px;
+        }
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+        .placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: rgba(226, 232, 240, 0.9);
+            text-align: center;
+            padding: 24px;
+        }
+        .placeholder span {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .actions {
+            margin-top: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        button {
+            border: none;
+            border-radius: 12px;
+            padding: 14px 20px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        button.primary {
+            background: #2563eb;
+            color: #fff;
+        }
+        button.primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 20px rgba(37, 99, 235, 0.25);
+        }
+        button.outline {
+            background: rgba(37, 99, 235, 0.08);
+            color: #1d4ed8;
+        }
+        button.outline:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 20px rgba(37, 99, 235, 0.15);
+        }
+        button.success {
+            background: #22c55e;
+            color: white;
+        }
+        button.success:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 20px rgba(34, 197, 94, 0.25);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .status-box {
+            margin-top: 24px;
+            padding: 18px;
+            border-radius: 16px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            color: #374151;
+            font-size: 14px;
+        }
+        .footer {
+            margin-top: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        .footer button {
+            padding: 10px 18px;
+        }
+        @media (max-width: 640px) {
+            .card {
+                padding: 24px;
+            }
+            .footer {
+                flex-direction: column;
+                gap: 16px;
+            }
+            .actions {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;">
+            <div>
+                <h1>Đăng ký nhận diện khuôn mặt</h1>
+                <p class="subtitle">Xin chào {{ user_name or 'học viên' }}! Vui lòng hoàn tất bước đăng ký khuôn mặt để có thể tham gia lớp học.</p>
+            </div>
+            <div id="statusChip" class="status-chip info">
+                <span id="statusIcon">ℹ️</span>
+                <span id="statusLabel">Chưa kiểm tra</span>
+            </div>
+        </div>
+
+        <div class="video-wrapper" id="videoWrapper">
+            <video id="face-video" autoplay playsinline muted></video>
+            <canvas id="face-canvas" style="display:none;"></canvas>
+            <div class="placeholder" id="cameraPlaceholder">
+                <span>📷</span>
+                <strong>Camera đã sẵn sàng</strong>
+                <p>Bấm “Bật camera” để chuẩn bị chụp ảnh khuôn mặt của bạn.</p>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button id="startCameraBtn" class="primary">Bật camera</button>
+            <button id="captureRegisterBtn" class="outline" disabled>Chụp &amp; đăng ký</button>
+            <button id="retryBtn" class="outline" style="display:none;">Chụp lại</button>
+            <button id="continueBtn" class="success" style="display:none;">Tiếp tục vào lớp</button>
+        </div>
+
+        <div class="status-box" id="statusMessage">
+            Đang chuẩn bị kiểm tra trạng thái đăng ký khuôn mặt...
+        </div>
+
+        <div class="footer">
+            <span>Student ID: <strong>{{ student_id or 'Chưa có' }}</strong></span>
+            <button id="backBtn" class="outline">Quay về bảng điều khiển</button>
+        </div>
+    </div>
+
+    <script src="/static/js/face-recognition-client.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const nextUrl = new URLSearchParams(window.location.search).get('next') || {{ next_url|tojson }};
+
+            const statusChip = document.getElementById('statusChip');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusLabel = document.getElementById('statusLabel');
+            const statusMessage = document.getElementById('statusMessage');
+
+            const startCameraBtn = document.getElementById('startCameraBtn');
+            const captureRegisterBtn = document.getElementById('captureRegisterBtn');
+            const retryBtn = document.getElementById('retryBtn');
+            const continueBtn = document.getElementById('continueBtn');
+            const backBtn = document.getElementById('backBtn');
+
+            const video = document.getElementById('face-video');
+            const placeholder = document.getElementById('cameraPlaceholder');
+
+            let cameraReady = false;
+            let registering = false;
+
+            function updateStatusChip(type, icon, text) {
+                statusChip.className = 'status-chip ' + type;
+                statusIcon.textContent = icon;
+                statusLabel.textContent = text;
+            }
+
+            function setMessage(text) {
+                statusMessage.textContent = text;
+            }
+
+            function handleSuccess(message) {
+                updateStatusChip('success', '✅', 'Đã đăng ký');
+                setMessage(message);
+                captureRegisterBtn.disabled = true;
+                retryBtn.style.display = 'inline-flex';
+                continueBtn.style.display = 'inline-flex';
+            }
+
+            async function checkRegistrationStatus() {
+                setMessage('Đang kiểm tra trạng thái đăng ký khuôn mặt...');
+                try {
+                    const result = await window.faceRecognitionClient.checkFaceRegistered();
+                    if (result.registered) {
+                        handleSuccess('Khuôn mặt của bạn đã được đăng ký. Bạn có thể tiếp tục vào lớp học.');
+                    } else {
+                        updateStatusChip('warning', '⚠️', 'Chưa đăng ký');
+                        setMessage('Chúng tôi chưa tìm thấy dữ liệu khuôn mặt của bạn. Vui lòng bật camera và đăng ký.');
+                    }
+                } catch (error) {
+                    console.error(error);
+                    updateStatusChip('warning', '⚠️', 'Không xác định');
+                    setMessage('Không thể kiểm tra trạng thái đăng ký. Lỗi: ' + error.message);
+                }
+            }
+
+            startCameraBtn.addEventListener('click', async () => {
+                try {
+                    startCameraBtn.disabled = true;
+                    setMessage('Đang bật camera...');
+                    await window.faceRecognitionClient.initialize('face-video', 'face-canvas');
+                    cameraReady = true;
+                    video.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    captureRegisterBtn.disabled = false;
+                    retryBtn.style.display = 'none';
+                    setMessage('Camera đã sẵn sàng. Vui lòng nhìn thẳng và giữ khuôn mặt trong khung hình, sau đó bấm “Chụp & đăng ký”.');
+                } catch (error) {
+                    console.error(error);
+                    cameraReady = false;
+                    startCameraBtn.disabled = false;
+                    captureRegisterBtn.disabled = true;
+                    setMessage('Không thể bật camera: ' + error.message);
+                    updateStatusChip('warning', '⚠️', 'Lỗi camera');
+                }
+            });
+
+            captureRegisterBtn.addEventListener('click', async () => {
+                if (!cameraReady || registering) {
+                    setMessage('Vui lòng bật camera trước khi chụp ảnh.');
+                    return;
+                }
+
+                try {
+                    registering = true;
+                    captureRegisterBtn.disabled = true;
+                    captureRegisterBtn.textContent = 'Đang đăng ký...';
+                    setMessage('Đang ghi nhận và xử lý khuôn mặt của bạn. Vui lòng giữ nguyên vị trí trong vài giây.');
+
+                    const result = await window.faceRecognitionClient.registerFace();
+                    handleSuccess('Đăng ký thành công! Identity ID: ' + (result.identityId || 'N/A'));
+                    captureRegisterBtn.textContent = 'Đã đăng ký';
+
+                    // Cập nhật trạng thái lần nữa
+                    setTimeout(checkRegistrationStatus, 1500);
+                } catch (error) {
+                    console.error(error);
+                    updateStatusChip('warning', '⚠️', 'Đăng ký thất bại');
+                    setMessage('Không thể đăng ký khuôn mặt: ' + error.message);
+                    captureRegisterBtn.disabled = false;
+                    captureRegisterBtn.textContent = 'Chụp & đăng ký';
+                } finally {
+                    registering = false;
+                }
+            });
+
+            retryBtn.addEventListener('click', () => {
+                captureRegisterBtn.disabled = false;
+                captureRegisterBtn.textContent = 'Chụp & đăng ký';
+                setMessage('Bạn có thể chụp lại khuôn mặt nếu muốn cập nhật dữ liệu mới.');
+            });
+
+            continueBtn.addEventListener('click', () => {
+                if (nextUrl) {
+                    window.location.href = nextUrl;
+                } else {
+                    window.location.href = '/dashboard';
+                }
+            });
+
+            backBtn.addEventListener('click', () => {
+                window.location.href = '/dashboard';
+            });
+
+            window.addEventListener('beforeunload', () => {
+                window.faceRecognitionClient.stop();
+            });
+
+            checkRegistrationStatus();
+        });
+    </script>
+</body>
+</html>
+
