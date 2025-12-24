@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSentry - Advanced Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .sidebar {
+            background: linear-gradient(135deg, #1e293b, #334155);
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        .alert-card {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        .success-card {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        .warning-card {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+    </style>
+</head>
+<body class="antialiased text-gray-800">
+    <!-- Sidebar -->
+    <div class="flex h-screen">
+        <div class="sidebar w-64 p-6 text-white">
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold">
+                    <span class="text-red-400">Edu</span>Sentry
+                </h1>
+                <p class="text-gray-300 text-sm">Smart Learning Monitoring</p>
+            </div>
+            
+            <nav class="space-y-2">
+                <a href="#dashboard" class="nav-item flex items-center p-3 rounded-lg hover:bg-gray-700 transition" data-section="dashboard">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                    </svg>
+                    Dashboard
+                </a>
+                <a href="#profile" class="nav-item flex items-center p-3 rounded-lg hover:bg-gray-700 transition" data-section="profile">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    My Profile
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 id="page-title" class="text-2xl font-bold text-gray-800">Dashboard</h2>
+                        <p id="page-subtitle" class="text-gray-600">Welcome back, <span id="user-name">{{ user_name or 'User' }}</span> ({{ user_role or 'Student' }})</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        {% if user_role == 'Admin' %}
+                        <a href="/admin" class="bg-purple-100 text-purple-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                            Admin Panel
+                        </a>
+                        {% endif %}
+                        {% if user_role == 'Teacher' %}
+                        <a href="/teacher" class="bg-blue-100 text-blue-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-200 transition">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                            Teacher Panel
+                        </a>
+                        {% endif %}
+                        <button id="request-role-btn" class="hidden bg-purple-100 text-purple-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-200 transition">Request Student Role</button>
+                        <a href="/logout" class="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 transition">
+                            <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+                <!-- Dashboard Section -->
+                <div id="dashboard-section" class="section">
+                    <!-- Metrics Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="card p-6 metric-card">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-blue-100 text-sm font-medium">Active Sessions</p>
+                                    <p id="active-sessions" class="text-3xl font-bold">0</p>
+                                </div>
+                                <div class="p-3 bg-blue-500 rounded-full">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card p-6 success-card">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-green-100 text-sm font-medium">Avg Engagement</p>
+                                    <p id="avg-engagement" class="text-3xl font-bold">0%</p>
+                                </div>
+                                <div class="p-3 bg-green-500 rounded-full">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card p-6 warning-card">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-yellow-100 text-sm font-medium">Total Alerts</p>
+                                    <p id="total-alerts" class="text-3xl font-bold">0</p>
+                                </div>
+                                <div class="p-3 bg-yellow-500 rounded-full">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card p-6 alert-card">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-red-100 text-sm font-medium">Risk Score</p>
+                                    <p id="risk-score" class="text-3xl font-bold">0%</p>
+                                </div>
+                                <div class="p-3 bg-red-500 rounded-full">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Row -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <!-- Engagement Trend Chart -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-semibold mb-4">Engagement Trend</h3>
+                            <canvas id="engagementChart" width="400" height="200"></canvas>
+                        </div>
+
+                        <!-- Alert Distribution Chart -->
+                        <div class="card p-6">
+                            <h3 class="text-lg font-semibold mb-4">Alert Distribution</h3>
+                            <canvas id="alertChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="card p-6">
+                            <h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+                            <div id="recent-activity" class="space-y-3">
+                                <!-- Activity items will be loaded here -->
+                            </div>
+                        </div>
+
+                        <div class="card p-6">
+                            <h3 class="text-lg font-semibold mb-4">Top Performing Students</h3>
+                            <div id="top-students" class="space-y-3">
+                                <!-- Top students will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Section -->
+                <div id="profile-section" class="section hidden">
+                    <div class="max-w-3xl mx-auto">
+                        <div class="card p-6">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-6">My Profile</h3>
+                            
+                            <!-- Avatar Section -->
+                            <div class="flex items-center space-x-6 mb-6 pb-6 border-b border-gray-200">
+                                <div class="relative">
+                                    <img id="profile-avatar" src="" alt="Avatar" 
+                                         class="w-24 h-24 rounded-full object-cover border-4 border-gray-200"
+                                         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Crect fill=\'%23ddd\' width=\'100\' height=\'100\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\' font-size=\'40\'%3E👤%3C/text%3E%3C/svg%3E';">
+                                    <div id="profile-avatar-placeholder" class="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-200">
+                                        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600 mb-1">Profile Picture</p>
+                                    <p class="text-xs text-gray-500">Avatar is taken from your registered face</p>
+                                    <p class="text-xs text-gray-400 mt-1">Register your face to set your avatar</p>
+                                </div>
+                            </div>
+                            
+                            <form id="profile-form" class="space-y-6">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
+                                        <input type="text" name="firstName" id="profile-firstName" required 
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                               placeholder="First name">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
+                                        <input type="text" name="lastName" id="profile-lastName" required 
+                                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                               placeholder="Last name">
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                                    <input type="email" name="email" id="profile-email" required 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                           placeholder="your.email@example.com">
+                                </div>
+                                
+                                <div id="profile-student-id-group" class="hidden">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Student ID</label>
+                                    <input type="text" id="profile-studentId" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" 
+                                           readonly 
+                                           disabled>
+                                    <p class="text-xs text-gray-500 mt-1">Student ID cannot be changed</p>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                                    <input type="text" id="profile-role" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed" 
+                                           readonly 
+                                           disabled>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <input type="checkbox" id="profile-change-password" class="mr-2"> Change Password
+                                    </label>
+                                    <input type="password" name="password" id="profile-password" 
+                                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" 
+                                           placeholder="Enter new password (minimum 6 characters)">
+                                    <p class="text-xs text-gray-500 mt-1">Leave empty to keep current password</p>
+                                </div>
+                                
+                                <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                                    <button type="button" id="cancel-profile" class="px-6 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                            
+                            <div id="profile-message" class="mt-4 hidden"></div>
+                        </div>
+                    </div>
+                </div>
+                
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.origin;
+        let engagementChart, alertChart;
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = item.dataset.section;
+                showSection(section);
+            });
+        });
+
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(`${sectionName}-section`).classList.remove('hidden');
+            
+            // Update page title
+            const titles = { 
+                'dashboard': 'Dashboard',
+                'profile': 'My Profile'
+            };
+            
+            document.getElementById('page-title').textContent = titles[sectionName] || sectionName;
+            document.getElementById('page-subtitle').textContent = sectionName === 'profile' 
+                ? 'Manage your personal information' 
+                : `Manage your ${titles[sectionName]?.toLowerCase() || sectionName}`;
+            
+            // Load section-specific data
+            if (sectionName === 'dashboard') { 
+                loadDashboardData(); 
+            } else if (sectionName === 'profile') {
+                loadProfileData();
+            }
+        }
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/reports/dashboard`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateDashboardMetrics(data.data);
+                    updateCharts(data.data);
+                    updateRecentActivity(data.data.recent_activity);
+                    updateTopStudents(data.data.top_performing_students);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        function updateDashboardMetrics(data) {
+            document.getElementById('active-sessions').textContent = data.summary.active_sessions;
+            document.getElementById('avg-engagement').textContent = Math.round(data.summary.average_engagement * 100) + '%';
+            document.getElementById('total-alerts').textContent = data.summary.total_alerts;
+            document.getElementById('risk-score').textContent = '15%'; // Mock data
+        }
+
+        function updateCharts(data) {
+            // Engagement Trend Chart
+            const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+            if (engagementChart) engagementChart.destroy();
+            
+            engagementChart = new Chart(engagementCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Engagement',
+                        data: data.analytics.engagement_trend,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1
+                        }
+                    }
+                }
+            });
+
+            // Alert Distribution Chart
+            const alertCtx = document.getElementById('alertChart').getContext('2d');
+            if (alertChart) alertChart.destroy();
+            
+            alertChart = new Chart(alertCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['High', 'Medium', 'Low'],
+                    datasets: [{
+                        data: [
+                            data.alerts_summary.high_severity,
+                            data.alerts_summary.medium_severity,
+                            data.alerts_summary.low_severity
+                        ],
+                        backgroundColor: [
+                            'rgb(239, 68, 68)',
+                            'rgb(245, 158, 11)',
+                            'rgb(34, 197, 94)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true
+                }
+            });
+        }
+
+        function updateRecentActivity(activities) {
+            const container = document.getElementById('recent-activity');
+            container.innerHTML = activities.map(activity => `
+                <div class="flex items-center p-3 bg-gray-50 rounded-lg">
+                    <div class="w-2 h-2 bg-${activity.alert_level === 'high' ? 'red' : 'yellow'}-500 rounded-full mr-3"></div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">${activity.type.replace('_', ' ')}</p>
+                        <p class="text-xs text-gray-500">${new Date(activity.timestamp).toLocaleString()}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateTopStudents(students) {
+            const container = document.getElementById('top-students');
+            container.innerHTML = students.map(student => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div>
+                        <p class="font-medium">${student.name}</p>
+                        <p class="text-sm text-gray-500">${student.student_id}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-semibold text-green-600">${Math.round(student.engagement_score * 100)}%</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load proctoring data
+        async function loadProctoringData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/proctoring/sessions`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateActiveProctoringSessions(data.activeSessions);
+                }
+            } catch (error) {
+                console.error('Error loading proctoring data:', error);
+            }
+        }
+
+        function updateActiveProctoringSessions(sessions) {
+            const container = document.getElementById('active-proctoring-sessions');
+            if (sessions.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No active proctoring sessions</p>';
+                return;
+            }
+            
+            container.innerHTML = sessions.map(session => `
+                <div class="p-4 border border-gray-200 rounded-lg">
+                    <div class="flex justify-between items-start mb-2">
+                        <h5 class="font-medium">${session.sessionId}</h5>
+                        <span class="text-xs px-2 py-1 bg-green-100 text-green-800 rounded-full">Active</span>
+                    </div>
+                    <p class="text-sm text-gray-600">Student: ${session.studentId}</p>
+                    <p class="text-sm text-gray-600">Duration: ${Math.round(session.duration / 60)} min</p>
+                    <p class="text-sm text-gray-600">Risk Score: ${Math.round(session.riskScore * 100)}%</p>
+                </div>
+            `).join('');
+        }
+
+        // Load classroom data
+        async function loadClassroomData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/classroom/sessions`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateActiveClassroomSessions(data.activeSessions);
+                }
+            } catch (error) {
+                console.error('Error loading classroom data:', error);
+            }
+        }
+
+        function updateActiveClassroomSessions(sessions) {
+            const container = document.getElementById('active-classroom-sessions');
+            if (sessions.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No active classroom sessions</p>';
+                return;
+            }
+            
+            container.innerHTML = sessions.map(session => `
+                <div class="p-4 border border-gray-200 rounded-lg">
+                    <div class="flex justify-between items-start mb-2">
+                        <h5 class="font-medium">${session.courseId}</h5>
+                        <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">Active</span>
+                    </div>
+                    <p class="text-sm text-gray-600">Students: ${session.totalStudents}</p>
+                    <p class="text-sm text-gray-600">Avg Engagement: ${Math.round(session.averageEngagement * 100)}%</p>
+                    <p class="text-sm text-gray-600">Duration: ${Math.round(session.duration / 60)} min</p>
+                </div>
+            `).join('');
+        }
+
+        // Generate reports
+        function generateReport(type) {
+            alert(`Generating ${type} report...`);
+            // In a real implementation, this would call the reports API
+        }
+
+        // Load real dashboard data from API
+        async function loadRealDashboardData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/reports/dashboard`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateDashboardMetrics(data.data);
+                    updateCharts(data.data.analytics);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        function updateDashboardMetrics(data) {
+            // Update summary metrics
+            document.getElementById('total-sessions').textContent = data.summary.total_sessions || 0;
+            document.getElementById('total-students').textContent = data.summary.total_students || 0;
+            document.getElementById('avg-engagement').textContent = Math.round((data.summary.average_engagement || 0) * 100) + '%';
+            document.getElementById('total-alerts').textContent = data.summary.total_alerts || 0;
+            document.getElementById('active-sessions').textContent = data.summary.active_sessions || 0;
+        }
+
+        function updateCharts(analytics) {
+            // Update engagement chart
+            if (window.engagementChart && analytics.engagement_trend) {
+                window.engagementChart.data.datasets[0].data = analytics.engagement_trend;
+                window.engagementChart.update();
+            }
+            
+            // Update concentration chart
+            if (window.concentrationChart && analytics.concentration_trend) {
+                window.concentrationChart.data.datasets[0].data = analytics.concentration_trend;
+                window.concentrationChart.update();
+            }
+        }
+
+        // Load profile data
+        async function loadProfileData() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/user/profile`, { credentials: 'include' });
+                const data = await response.json();
+                
+                if (response.ok && data.user) {
+                    const user = data.user;
+                    
+                    // Populate form
+                    document.getElementById('profile-firstName').value = user.firstName || '';
+                    document.getElementById('profile-lastName').value = user.lastName || '';
+                    document.getElementById('profile-email').value = user.email || '';
+                    document.getElementById('profile-role').value = user.roleName || 'Unassigned';
+                    
+                    // Show Student ID if available
+                    const studentIdGroup = document.getElementById('profile-student-id-group');
+                    const studentIdInput = document.getElementById('profile-studentId');
+                    if (user.studentId) {
+                        studentIdGroup.classList.remove('hidden');
+                        studentIdInput.value = user.studentId;
+                    } else {
+                        studentIdGroup.classList.add('hidden');
+                    }
+                    
+                    // Set avatar
+                    const avatarImg = document.getElementById('profile-avatar');
+                    const avatarPlaceholder = document.getElementById('profile-avatar-placeholder');
+                    if (user.avatar) {
+                        // If avatar is base64, add data URL prefix if needed
+                        let avatarSrc = user.avatar;
+                        if (!avatarSrc.startsWith('data:image')) {
+                            // Assume it's base64 encoded image, add prefix
+                            avatarSrc = 'data:image/jpeg;base64,' + avatarSrc;
+                        }
+                        avatarImg.src = avatarSrc;
+                        avatarImg.classList.remove('hidden');
+                        avatarPlaceholder.classList.add('hidden');
+                    } else {
+                        avatarImg.classList.add('hidden');
+                        avatarPlaceholder.classList.remove('hidden');
+                    }
+                    
+                    // Reset password field
+                    document.getElementById('profile-change-password').checked = false;
+                    document.getElementById('profile-password').classList.add('hidden');
+                    document.getElementById('profile-password').value = '';
+                    document.getElementById('profile-password').required = false;
+                    
+                    // Hide message
+                    document.getElementById('profile-message').classList.add('hidden');
+                } else {
+                    showProfileMessage('Error loading profile: ' + (data.message || 'Unknown error'), 'error');
+                }
+            } catch (err) {
+                console.error('Error loading profile:', err);
+                showProfileMessage('Error loading profile information', 'error');
+            }
+        }
+
+        // Toggle password field
+        document.getElementById('profile-change-password')?.addEventListener('change', (e) => {
+            const passwordField = document.getElementById('profile-password');
+            if (e.target.checked) {
+                passwordField.classList.remove('hidden');
+                passwordField.required = true;
+            } else {
+                passwordField.classList.add('hidden');
+                passwordField.required = false;
+                passwordField.value = '';
+            }
+        });
+
+        // Handle profile form submit
+        document.getElementById('profile-form')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const profileData = {
+                firstName: formData.get('firstName'),
+                lastName: formData.get('lastName'),
+                email: formData.get('email')
+            };
+            
+            // Only include password if change password is checked
+            const changePassword = document.getElementById('profile-change-password').checked;
+            if (changePassword) {
+                const password = formData.get('password');
+                if (password && password.length >= 6) {
+                    profileData.password = password;
+                } else if (password) {
+                    showProfileMessage('Password must be at least 6 characters long', 'error');
+                    return;
+                }
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/user/profile`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(profileData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showProfileMessage('Profile updated successfully!', 'success');
+                    // Update header name
+                    const userNameSpan = document.getElementById('user-name');
+                    if (userNameSpan) {
+                        userNameSpan.textContent = `${profileData.firstName} ${profileData.lastName}`;
+                    }
+                    // Reload profile data to refresh all fields
+                    setTimeout(() => loadProfileData(), 1000);
+                } else {
+                    showProfileMessage('Error: ' + (data.message || 'Failed to update profile'), 'error');
+                }
+            } catch (err) {
+                console.error('Error updating profile:', err);
+                showProfileMessage('Error updating profile', 'error');
+            }
+        });
+
+        // Cancel profile changes
+        document.getElementById('cancel-profile')?.addEventListener('click', () => {
+            loadProfileData();
+        });
+
+        // Show profile message
+        function showProfileMessage(message, type) {
+            const messageDiv = document.getElementById('profile-message');
+            if (!messageDiv) return;
+            
+            messageDiv.textContent = message;
+            messageDiv.classList.remove('hidden');
+            
+            if (type === 'success') {
+                messageDiv.className = 'mt-4 p-4 bg-green-100 text-green-700 border border-green-400 rounded-lg';
+            } else {
+                messageDiv.className = 'mt-4 p-4 bg-red-100 text-red-700 border border-red-400 rounded-lg';
+            }
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            showSection('dashboard');
+            loadRealDashboardData(); // Load real data instead of mock
+            
+            // Set up periodic data refresh
+            setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
+            // Toggle Request Role button for Unassigned users
+            try {
+                const userStr = sessionStorage.getItem('eduSentryUser');
+                if (userStr) {
+                    const user = JSON.parse(userStr);
+                    if (!user.roleName || user.roleName === 'Unassigned' || user.roleId === null) {
+                        const btn = document.getElementById('request-role-btn');
+                        btn.classList.remove('hidden');
+                        btn.addEventListener('click', async () => {
+                            const reason = prompt('Enter reason (optional):');
+                            try {
+                                const res = await fetch(`${API_BASE_URL}/api/role/request`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ requestedRole: 'Student', reason })
+                                });
+                                const data = await res.json();
+                                if (res.ok) alert('Request submitted to Teacher/Admin');
+                                else alert(data.message || 'Request failed');
+                            } catch (_) { alert('Request failed'); }
+                        });
+                    }
+                }
+            } catch (_) {}
+        });
+    </script>
+</body>
+</html>
